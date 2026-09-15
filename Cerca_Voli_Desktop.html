@@ -75,34 +75,62 @@ function mergeAirportCatalog(rows){
  for(const p of STATIC_AIRPORTS) if(!map.has(p.iata)) map.set(p.iata,p);
  AIRPORTS=[...map.values()];
 }
+const CITY_SEARCH_ALIASES={
+  praga:['praga','prague','praha'],prague:['praga','prague','praha'],praha:['praga','prague','praha'],
+  roma:['roma','rome'],rome:['roma','rome'],milano:['milano','milan'],milan:['milano','milan'],
+  napoli:['napoli','naples'],naples:['napoli','naples'],venezia:['venezia','venice'],venice:['venezia','venice'],
+  firenze:['firenze','florence'],florence:['firenze','florence'],torino:['torino','turin'],turin:['torino','turin'],
+  genova:['genova','genoa'],genoa:['genova','genoa'],parigi:['parigi','paris'],paris:['parigi','paris'],
+  londra:['londra','london'],london:['londra','london'],vienna:['vienna','wien'],wien:['vienna','wien'],
+  monaco:['monaco','munich','munchen','muenchen'],munich:['munich','monaco','munchen','muenchen'],
+  francoforte:['francoforte','frankfurt'],frankfurt:['frankfurt','francoforte'],
+  barcellona:['barcellona','barcelona'],barcelona:['barcelona','barcellona'],lisbona:['lisbona','lisbon'],lisbon:['lisbon','lisbona'],
+  atene:['atene','athens'],athens:['athens','atene'],bruxelles:['bruxelles','brussels'],brussels:['brussels','bruxelles'],
+  zurigo:['zurigo','zurich'],zurich:['zurich','zurigo'],
+};
+const METRO_CITY_ALIASES={
+  milano:['milano','milan','bergamo'],milan:['milano','milan','bergamo'],
+  roma:['roma','rome','fiumicino','ciampino'],rome:['roma','rome','fiumicino','ciampino'],
+  londra:['londra','london'],london:['londra','london'],parigi:['parigi','paris'],paris:['parigi','paris']
+};
+function airportSearchAliases(n){
+ const direct=CITY_SEARCH_ALIASES[n];
+ return direct ? [...new Set(direct)] : [n];
+}
+function airportRank(p){return p.type==='large_airport'?30:p.type==='medium_airport'?15:0;}
 function localAirportSuggestions(q){
  const raw=(q||'').trim(), n=foldAirport(raw); if(!n)return [];
  const code=raw.toUpperCase();
  const exact=AIRPORTS.filter(p=>String(p.iata||'').toUpperCase()===code);
  if(exact.length)return exact.slice(0,6);
- const tokens=n.split(/\s+/).filter(Boolean);
- const scored=[];
- for(const p of AIRPORTS){
-   const city=foldAirport(p.city), name=foldAirport(p.name), keys=foldAirport(p.keywords||'');
-   let score=0;
-   if(city===n)score=1000;
-   else if(city.startsWith(n))score=850;
-   else if(name===n)score=800;
-   else if(name.startsWith(n))score=700;
-   else if(keys.split(',').some(k=>k.trim()===n))score=650;
-   else if(tokens.length>1 && tokens.every(t=>city.includes(t)||name.includes(t)||keys.includes(t)))score=600;
-   else if(city.includes(n))score=500;
-   else if(name.includes(n))score=400;
-   else if(keys.includes(n))score=300;
-   if(score) {
-     if(p.type==='large_airport')score+=30;
-     else if(p.type==='medium_airport')score+=15;
-     scored.push([score,p]);
-   }
+ const aliases=airportSearchAliases(n);
+ const metro=METRO_CITY_ALIASES[n]||[];
+ // 1) City lock: if the query identifies a city, never mix in airports from
+ // unrelated cities merely because their keywords happen to contain the text.
+ const cityMatches=AIRPORTS.filter(p=>{
+   const city=foldAirport(p.city);
+   return aliases.includes(city) || metro.includes(city);
+ });
+ if(cityMatches.length){
+   return cityMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
  }
- scored.sort((a,b)=>b[0]-a[0] || String(a[1].iata).localeCompare(String(b[1].iata)));
- return scored.slice(0,6).map(x=>x[1]);
+ // 2) Airport name. Still no generic keyword substring matching.
+ const nameMatches=AIRPORTS.filter(p=>{
+   const name=foldAirport(p.name);
+   return aliases.some(a=>name===a||name.startsWith(a+' ')||name.includes(' '+a+' '));
+ });
+ if(nameMatches.length){
+   return nameMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
+ }
+ // 3) Exact keyword only (OurAirports keywords can contain broad/unrelated
+ // phrases, so substring matching is deliberately forbidden here).
+ const keywordMatches=AIRPORTS.filter(p=>String(p.keywords||'').split(',').map(x=>foldAirport(x)).some(k=>aliases.includes(k)));
+ if(keywordMatches.length){
+   return keywordMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
+ }
+ return [];
 }
+
 async function loadWorldAirportCatalog(){
  try{
    const cached=localStorage.getItem(AIRPORT_CACHE_KEY);

@@ -1146,37 +1146,28 @@ def _airport_query_variants(q):
     return {v for v in variants if v}
 
 def _airport_score(variants,row):
+    """Score city/name matches; broad keyword substrings are intentionally excluded."""
     city=_fold_search_text(row.get('city')); name=_fold_search_text(row.get('name'))
-    kws=[_fold_search_text(x) for x in str(row.get('keywords') or '').split(',') if _fold_search_text(x)]
-    fields=[(city,125),(name,95)]+[(k,80) for k in kws]
     best=0
-    query_tokens=set(t for v in variants for t in v.split() if len(t)>=2)
-    for text,weight in fields:
-        if not text: continue
-        for v in variants:
-            if not v: continue
-            if text==v: score=weight+40
-            elif text.startswith(v+' ') or v.startswith(text+' '): score=weight+25
-            elif v in text or text in v: score=weight+12
-            else:
-                ratio=difflib.SequenceMatcher(None,v,text).ratio()
-                score=weight*ratio if ratio>=0.72 else 0
-            best=max(best,score)
-        # Token-level matching makes city names work even when the airport
-        # municipality is a suburb (e.g. Torino -> Caselle Torinese / Turin).
-        text_tokens=set(t for t in text.split() if len(t)>=2)
-        if query_tokens and text_tokens:
-            overlap=query_tokens & text_tokens
-            if overlap:
-                best=max(best,weight+18*len(overlap))
-            for qt in query_tokens:
-                for tt in text_tokens:
-                    ratio=difflib.SequenceMatcher(None,qt,tt).ratio()
-                    if ratio>=0.78:
-                        best=max(best,weight*0.78)
+    for v in variants:
+        if not v: continue
+        if city==v: best=max(best,145)
+        elif city.startswith(v+' '): best=max(best,125)
+        elif name==v: best=max(best,120)
+        elif name.startswith(v+' '): best=max(best,105)
+        elif v in city: best=max(best,95)
+        elif v in name: best=max(best,80)
+        else:
+            ratio=difflib.SequenceMatcher(None,v,city).ratio()
+            if ratio>=0.82: best=max(best,90*ratio)
     if row.get('type')=='large_airport': best+=18
     elif row.get('type')=='medium_airport': best+=8
     return best
+
+def _airport_city_candidates(rows, qfold):
+    aliases=set(AIRPORT_CITY_ALIASES.get(qfold, [])) | {qfold}
+    metro=set(AIRPORT_METRO_ALIASES.get(qfold, []))
+    return [r for r in rows if _fold_search_text(r.get('city')) in aliases or _fold_search_text(r.get('city')) in metro]
 
 def airport_place_suggestions(query):
     q=str(query or '').strip()
@@ -1187,39 +1178,30 @@ def airport_place_suggestions(query):
         if exact:
             out=[]
             for row in exact:
-                out.append({'label':f"{row['iata']} — {row['name']} · {row['city']} · {row['country']}",'name':row['name'],
-                            'type':'airport','category':'aeroway','displayType':'✈️ Aeroporto','iata':row['iata'],
-                            'lat':as_float(row.get('lat')),'lon':as_float(row.get('lon')),'city':row.get('city',''),
-                            'country':row.get('country',''),'score':999})
+                out.append({'label':f"{row['iata']} — {row['name']} · {row['city']} · {row['country']}",'name':row['name'],'type':'airport','category':'aeroway','displayType':'✈️ Aeroporto','iata':row['iata'],'lat':as_float(row.get('lat')),'lon':as_float(row.get('lon')),'city':row.get('city',''),'country':row.get('country',''),'score':999})
             return {'ok':True,'places':out[:10]}
         return {'ok':True,'places':[{'label':f'{code} — Aeroporto (codice IATA)','type':'airport','category':'aeroway','iata':code,'lat':None,'lon':None,'name':f'{code} — Aeroporto','city':'','country':''}]}
 
-    variants=_airport_query_variants(q)
-    # Also search individual query words. This is deliberately independent of
-    # the small alias table, so ordinary cities not listed there still resolve.
     qfold=_fold_search_text(q)
-    variants.update(t for t in qfold.split() if len(t)>=2)
-    scored=[]
-    for row in rows:
-        score=_airport_score(variants,row)
-        if score<=0: continue
-        city=_fold_search_text(row.get('city')); name=_fold_search_text(row.get('name'))
-        kws=[_fold_search_text(x) for x in str(row.get('keywords') or '').split(',') if _fold_search_text(x)]
-        hay=' '.join([city,name,*kws])
-        strong=(qfold in hay or any(v and v in hay for v in variants))
-        # For short/ambiguous queries keep only reasonably strong fuzzy matches;
-        # exact phrase/token matches remain preferred.
-        if not strong and score<78: continue
-        scored.append((score,row))
+    city_rows=_airport_city_candidates(rows,qfold)
+    if city_rows:
+        city_rows.sort(key=lambda r:(r.get('type')!='large_airport',r.get('type')!='medium_airport',r.get('iata','')))
+        scored=[(150 if _fold_search_text(r.get('city'))==qfold else 135,r) for r in city_rows]
+    else:
+        variants=_airport_query_variants(q)
+        scored=[]
+        for row in rows:
+            score=_airport_score(variants,row)
+            if score>0: scored.append((score,row))
+        for row in rows:
+            kws=[_fold_search_text(x) for x in str(row.get('keywords') or '').split(',') if _fold_search_text(x)]
+            if qfold in kws: scored.append((100,row))
     scored.sort(key=lambda z:(-z[0],z[1].get('type')!='large_airport',z[1].get('iata','')))
     out=[];seen=set()
     for score,row in scored:
         if row['iata'] in seen: continue
         seen.add(row['iata'])
-        out.append({'label':f"{row['iata']} — {row['name']} · {row['city']} · {row['country']}",'name':row['name'],
-                    'type':'airport','category':'aeroway','displayType':'✈️ Aeroporto','iata':row['iata'],
-                    'lat':as_float(row.get('lat')),'lon':as_float(row.get('lon')),'city':row.get('city',''),
-                    'country':row.get('country',''),'score':round(score,2)})
+        out.append({'label':f"{row['iata']} — {row['name']} · {row['city']} · {row['country']}",'name':row['name'],'type':'airport','category':'aeroway','displayType':'✈️ Aeroporto','iata':row['iata'],'lat':as_float(row.get('lat')),'lon':as_float(row.get('lon')),'city':row.get('city',''),'country':row.get('country',''),'score':round(score,2)})
         if len(out)>=10: break
     return {'ok':True,'places':out}
 
