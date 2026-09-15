@@ -388,6 +388,15 @@ def flatten_currency(items, requested='EUR'):
 def search_flights(body):
     origin = str(body.get('origin', '')).strip().upper()
     destination = str(body.get('destination', '')).strip().upper()
+
+    # Normalize legacy/ambiguous airport aliases before sending them to
+    # Skyscanner/Apify. Some airport datasets contain MPX for Milan Malpensa,
+    # while Skyscanner expects the current IATA code MXP.
+    IATA_ALIASES = {
+        'MPX': 'MXP',
+    }
+    origin = IATA_ALIASES.get(origin, origin)
+    destination = IATA_ALIASES.get(destination, destination)
     depart = str(body.get('departure_date', '')).strip()
     ret = str(body.get('return_date', '')).strip()
     pax = max(1, min(9, int(body.get('passengers') or 1)))
