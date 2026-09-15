@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Travel Work Planner — v25</title>
+<style>
+:root{--primary:#8f0b12;--secondary:#f1f1f1;--danger:#5b080d;--border:#b9b9b9;--text:#161616;--muted:#5a5a5a;--dark:#222222}
+*{box-sizing:border-box} body{margin:0;background:#f4f6f8;color:var(--text);font-family:Arial,Helvetica,sans-serif}
+.container{max-width:1500px;margin:20px auto;padding:0 18px}
+header{background:linear-gradient(135deg,#171717,#8f0b12);color:white;padding:24px;border-radius:14px;margin-bottom:18px}
+header h1{margin:0 0 5px;font-size:28px} header p{margin:0;opacity:.9}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0}
+button{border:0;border-radius:7px;padding:9px 13px;cursor:pointer;font-weight:600;background:var(--primary);color:white}
+button.secondary{background:#64748b} button.danger{background:var(--danger)} button.light{background:#e2e8f0;color:#1e293b}
+section{background:white;border-radius:12px;margin:16px 0;padding:18px;box-shadow:0 2px 8px #0000000d;border:1px solid #e5e7eb}
+section h2{margin:0 0 14px;color:var(--primary);font-size:20px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:10px}
+.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:12px;font-weight:700;color:#475569}
+input,textarea,select{width:100%;padding:9px;border:1px solid var(--border);border-radius:6px;background:#fff;font:inherit}
+textarea{min-height:58px;resize:vertical}
+.c2{grid-column:span 2}.c3{grid-column:span 3}.c4{grid-column:span 4}.c6{grid-column:span 6}.c8{grid-column:span 8}.c10{grid-column:span 10}.c12{grid-column:span 12}
+.table-wrap{overflow-x:auto}.table{width:100%;border-collapse:collapse;min-width:1050px}.table th,.table td{border-bottom:1px solid #e5e7eb;padding:7px;vertical-align:top}.table th{background:#f1f5f9;text-align:left;font-size:12px}.table input,.table textarea{min-width:90px}
+.checks{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.check{display:flex;gap:5px;align-items:center;font-size:12px;white-space:nowrap}
+.file-list{font-size:11px;color:var(--muted);margin-top:5px}.file-list div{display:flex;justify-content:space-between;gap:5px}.file-list button{padding:2px 5px;font-size:10px;background:#94a3b8}
+.row-actions{white-space:nowrap}.small{font-size:11px;color:var(--muted)}
+#status{font-size:12px;color:#475569;margin-left:auto;align-self:center}
+.attachment-area{border:2px dashed #cbd5e1;padding:15px;border-radius:8px;background:#f8fafc}
+@media(max-width:900px){.c2,.c3,.c4,.c6,.c8,.c10{grid-column:span 12}.container{padding:0 8px}}
+@media print{
+  body{background:white;font-size:10px}.container{max-width:none;margin:0;padding:0}
+  header{background:none!important;color:#000;border-bottom:2px solid #173d5d;border-radius:0;padding:8px 0}
+  header h1{font-size:20px}.toolbar,.no-print,.row-actions,.file-input,.delete-file{display:none!important}
+  section{box-shadow:none;border:0;border-bottom:1px solid #aaa;border-radius:0;padding:8px 0;margin:0}
+  section h2{font-size:14px;margin:0 0 6px}
+  input,textarea,select{border:0;padding:2px;background:transparent}
+  .table{min-width:0;font-size:8px}.table th,.table td{padding:3px}
+  .print-files{display:block!important}
+}
+.budget-total-cell{font-weight:700;white-space:nowrap}.budget-summary .small{line-height:1.7}.budget-summary{margin-top:10px;padding:11px 13px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;text-align:right}.budget-summary b{font-size:15px;color:var(--primary)}
+@media print{.budget-summary{display:block!important}.budget-total-cell{font-weight:700}}
+.print-files{display:none}
+@page{size:A4 portrait;margin:10mm}
+</style>
+
+<style>
+.pdf-manifest{margin-top:12px;padding:10px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc}
+.pdf-manifest h3{margin:0 0 7px;font-size:13px;color:#1f4e78}
+@media print{.pdf-manifest{display:block!important}.pdf-manifest .no-print{display:none!important}}
+</style>
+
+<script>
+window.addEventListener('error', function(e){
+  if(e && e.message && /PDFLib|pdf-lib/i.test(e.message)){
+    console.error('Errore pdf-lib:', e.message);
+  }
+});
+</script>
+
+<script src="pdf-lib.min.js"></script>
+
+<style>
+/* Migliorie v10: interfaccia più compatta e tabella viaggiatori con ruolo. */
+section{padding:14px;margin:12px 0}
+section h2{margin:0 0 10px}
+.grid{gap:8px}
+.table th,.table td{padding:6px}
+.toolbar{margin:10px 0}
+@media print{
+  section{padding:5px 0;margin:0}
+  section h2{margin:0 0 4px}
+  .table th,.table td{padding:2px}
+}
+</style>
+
+<style id="dossier-pro-v16">
+/* ===== DOSSIER PDF PRO v16 ===== */
+.dossier-pro-note{display:none}
+</style>
+
+<style id="tw-pro-theme">
+:root{--tw-navy:#092b4c;--tw-blue:#178ff0;--tw-bg:#f3f7fb;--tw-line:#dfe8f1;--tw-text:#102b46;--tw-muted:#607b96}
+body{background:var(--tw-bg)!important;color:var(--tw-text)!important;font-family:"Segoe UI",Arial,sans-serif!important}
+.tw-sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:linear-gradient(180deg,#062744,#0a4776);color:#fff;z-index:3000;padding:24px 16px;display:flex;flex-direction:column;box-shadow:6px 0 22px #0a2f4a18}
+.tw-side-brand{display:flex;align-items:center;gap:11px;padding:0 8px 26px;border-bottom:1px solid #ffffff20}.tw-logo{width:39px;height:39px;border-radius:12px;background:#fff;color:#0a4b7d;display:grid;place-items:center;font-size:22px;transform:rotate(-8deg)}.tw-side-brand b{display:block;font-size:15px;line-height:1.15}.tw-side-brand span{display:block;font-size:10px;color:#b9d7ed;margin-top:3px}
+.tw-nav{display:flex;flex-direction:column;gap:5px;margin-top:24px}.tw-nav a{color:#e9f5ff;text-decoration:none;border-radius:10px;padding:12px 12px;display:flex;align-items:center;gap:12px;font-weight:650;font-size:14px;transition:.15s}.tw-nav a span{width:22px;text-align:center;font-size:18px}.tw-nav a:hover{background:#ffffff12}.tw-nav a.active{background:linear-gradient(90deg,#167fce,#1763a1);box-shadow:inset 3px 0 #63c0ff}
+.tw-side-bottom{margin-top:auto;padding:14px 9px 4px;color:#b9d7ed;font-size:11px;border-top:1px solid #ffffff18}.tw-side-bottom b{display:block;color:#fff;font-size:12px;margin-bottom:4px}.tw-side-bottom small{display:block;margin-top:3px}.tw-side-bottom i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#35c98a;margin-right:5px}
+body>.wrap,body>.container{margin-left:220px!important;max-width:none!important;padding-left:34px!important;padding-right:34px!important;width:auto!important}
+body>.wrap{padding-top:24px!important}.wrap>header,.container>header{border-radius:18px!important;overflow:hidden!important;position:relative!important;box-shadow:0 10px 28px #153b5815!important}
+body>.wrap>header{background-color:#0b2946!important}
+body>.wrap>header h1,body>.container>header h1{font-weight:800!important;letter-spacing:-.3px}
+body>.wrap>.card,body>.container>section{border:1px solid var(--tw-line)!important;box-shadow:0 7px 24px #173d5910!important;border-radius:16px!important}
+body>.wrap>.card{padding:22px!important}
+body>.wrap .f input,body>.wrap .f select,body>.container input,body>.container textarea,body>.container select{border-color:#cad9e7!important;border-radius:10px!important;min-height:42px}
+body>.wrap button,body>.container button{border-radius:10px!important;padding:11px 16px!important;box-shadow:0 3px 8px #0a315218}
+body>.wrap button:not(.secondary):not(.light),body>.container button:not(.secondary):not(.light){background:#138f8a!important}
+body>.wrap button.secondary,body>.container button.secondary{background:#42566e!important}
+body>.wrap button.light,body>.container button.light{background:#e6edf5!important;color:#17324c!important}
+@media(max-width:900px){.tw-sidebar{position:relative;width:auto;min-height:auto;padding:12px}.tw-side-brand{padding-bottom:12px;border-bottom:0}.tw-nav{display:grid;grid-template-columns:repeat(5,1fr);margin-top:5px}.tw-nav a{justify-content:center;padding:9px 4px;font-size:11px}.tw-nav a span{width:auto}.tw-side-bottom{display:none}body>.wrap,body>.container{margin-left:0!important;padding-left:12px!important;padding-right:12px!important}}
+</style>
+
+<style id="tw-page-photo">
+body>.wrap>header,body>.container>header{background-image:linear-gradient(90deg,rgba(7,35,60,.94),rgba(7,35,60,.58),rgba(7,35,60,.18)),url('home-planner.jpg')!important;background-size:cover!important;background-position:center!important;padding:24px 28px!important;min-height:118px}
+body>.wrap>header .link,body>.container>header a{color:#75d0ff!important}
+</style>
+<style id="tw-planner-overrides">
+.planner-hero{background-image:linear-gradient(90deg,rgba(6,35,59,.94),rgba(6,35,59,.56),rgba(6,35,59,.12)),url('home-planner.jpg')!important;background-size:cover!important;background-position:center!important;min-height:150px!important;padding:28px 32px!important}.planner-hero .planner-kicker{font-size:11px;letter-spacing:1.8px;color:#83d1ff;font-weight:800;margin-bottom:7px}.planner-hero h1{font-size:31px!important}.toolbar{background:#fff;padding:10px;border:1px solid #dfe8f1;border-radius:14px;box-shadow:0 5px 18px #173d5910}.toolbar button{font-size:13px}.container section h2{font-size:20px!important;color:#123d63!important}.container section h2:before{content:'';display:inline-block;width:5px;height:20px;background:#1797e9;border-radius:4px;margin-right:9px;vertical-align:-3px}.budget-summary{border-radius:10px!important}.attachment-area,.pdf-manifest{border-radius:12px!important}
+</style>
+
+<style id="tw-top-navigation-v46">
+:root{--tw-navy:#092b4c;--tw-blue:#178ff0;--tw-cyan:#38a9f4;--tw-bg:#f3f7fb;--tw-line:#dfe8f1;--tw-text:#102b46;--tw-muted:#607b96}
+.tw-sidebar{display:none!important}
+.tw-topnav{position:sticky;top:0;z-index:4000;height:68px;background:rgba(255,255,255,.97);backdrop-filter:blur(12px);border-bottom:1px solid var(--tw-line);box-shadow:0 4px 18px rgba(20,55,85,.08);display:flex;align-items:center;padding:0 34px;gap:30px}
+.tw-topbrand{display:flex;align-items:center;gap:10px;color:var(--tw-navy);font-size:18px;font-weight:800;white-space:nowrap}.tw-toplogo{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#0b4b7d,#178ff0);color:#fff;display:grid;place-items:center;font-size:20px;box-shadow:0 5px 12px rgba(23,143,240,.22)}
+.tw-tabs{display:flex;align-items:center;gap:4px;height:100%;flex:1}.tw-tabs a{height:100%;display:inline-flex;align-items:center;gap:7px;padding:0 14px;color:#526d87;text-decoration:none;font-size:13px;font-weight:700;border-bottom:3px solid transparent;transition:.15s}.tw-tabs a:hover{color:var(--tw-navy);background:#f5f9fc}.tw-tabs a.active{color:var(--tw-blue);border-bottom-color:var(--tw-blue);background:#f4f9fe}.tw-tabs a span{font-size:15px}.tw-topstatus{font-size:11px;color:#6b8298;white-space:nowrap}
+body>.wrap,body>.container{margin-left:0!important;max-width:1500px!important;padding-left:34px!important;padding-right:34px!important;width:auto!important}
+body>.wrap{padding-top:24px!important}
+body>.wrap>header,body>.container>header{margin-top:0!important}
+body{padding-top:0!important}
+.tw-home-old-nav,.topbar{ }
+@media(max-width:900px){.tw-topnav{height:60px;padding:0 12px;gap:12px}.tw-topbrand{font-size:15px}.tw-toplogo{width:32px;height:32px}.tw-tabs{overflow-x:auto}.tw-tabs a{font-size:12px;padding:0 10px;white-space:nowrap}.tw-topstatus{display:none}body>.wrap,body>.container{padding-left:12px!important;padding-right:12px!important}.tw-tabs::-webkit-scrollbar{display:none}}
+@media print{.tw-topnav{display:none!important}body>.wrap,body>.container{margin:0!important;padding:0!important;max-width:none!important}.topbar{display:none!important}}
+</style>
+
+<style id="tw-institutional-pdf-v46">
+@media print{
+  body{background:#fff!important;color:#162f49!important;font-family:"Segoe UI",Arial,sans-serif!important;font-size:10px!important}
+  .tw-topnav{display:none!important}
+  .container{max-width:none!important;margin:0!important;padding:0!important}
+  header,.planner-hero{background:#0b2946!important;color:#fff!important;border-radius:0!important;box-shadow:none!important;border:0!important;min-height:92px!important;padding:18px 24px!important}
+  header h1,.planner-hero h1{font-size:21px!important;color:#fff!important;margin:0 0 4px!important}
+  header p{font-size:9px!important;color:#dceaf5!important}
+  .planner-kicker{font-size:7px!important;color:#73c7fa!important;letter-spacing:1.5px!important}
+  .toolbar,.no-print,.row-actions,.file-input,.delete-file{display:none!important}
+  section{background:#fff!important;border:1px solid #d6e0e9!important;border-radius:5px!important;box-shadow:none!important;padding:9px!important;margin:8px 0!important}
+  section h2{color:#0b4f82!important;font-size:13px!important;border-bottom:1px solid #cbd9e5!important;padding-bottom:5px!important}
+  section h2:before{background:#178ff0!important;width:4px!important;height:14px!important}
+  input,textarea,select{border:0!important;background:transparent!important;padding:2px!important;color:#172f47!important}
+  .table{min-width:0!important;width:100%!important;font-size:8px!important}
+  .table th{background:#edf3f8!important;color:#183b5a!important;border-bottom:1px solid #bfcfdd!important;font-size:7.5px!important}
+  .table th,.table td{padding:3px!important;border-bottom:1px solid #dce5ec!important}
+  .budget-summary{background:#f2f7fb!important;border:1px solid #bcd0e0!important;border-radius:5px!important}
+  .budget-summary b{color:#0b4f82!important}
+  .attachment-area,.pdf-manifest{background:#f6f9fb!important;border:1px solid #c9d8e4!important;border-radius:5px!important}
+  .print-files{display:block!important}
+  .pdf-manifest h3{color:#0b4f82!important}
+  @page{size:A4 portrait;margin:10mm}
+}
+.report-btn{background:#178ff0!important;color:#fff!important;box-shadow:0 5px 14px rgba(23,143,240,.20)!important}.report-btn:hover{background:#0d7fdc!important}
+</style>
+<script src="cloud-access.js"></script>
+<link rel="manifest" href="manifest.webmanifest">
+</head>
+<body>
+<nav class="tw-topnav" aria-label="Navigazione principale">
+  <div class="tw-topbrand"><span class="tw-toplogo">✈</span><span>Travel Work Planner</span></div>
+  <div class="tw-tabs">
+    <a href="Home.html" data-page="home"><span>⌂</span> Home</a>
+    <a href="Cerca_Voli_Desktop.html" data-page="voli"><span>✈</span> Voli</a>
+    <a href="Cerca_Hotel_Desktop.html" data-page="hotel"><span>▣</span> Hotel</a>
+    <a href="Cerca_Autonoleggio_Desktop.html" data-page="auto"><span>🚗</span> Autonoleggio</a>
+    <a href="Travel_Planner.html" data-page="planner"><span>▦</span> Planner</a>
+  </div>
+  <div class="tw-topstatus">USB · Offline</div>
+</nav>
+
+<div class="container">
+<header class="planner-hero">
+  <div class="planner-kicker">TRAVEL MANAGEMENT</div>
+  <h1 id="docTitle">Viaggio di lavoro</h1>
+  <p id="docDates">Inserisci titolo e periodo del viaggio</p>
+</header>
+
+<div class="toolbar no-print">
+  <button type="button" onclick="location.href='Home.html'">⌂ Home</button><button type="button" onclick="location.href='Cerca_Voli_Desktop.html'">✈️ Cerca voli</button>
+  <button type="button" onclick="location.href='Cerca_Hotel_Desktop.html'">🏨 Cerca hotel</button>
+  <button type="button" onclick="location.href='Cerca_Autonoleggio_Desktop.html'">🚗 Cerca autonoleggio</button>
+  <button type="button" onclick="addAllSamples()">＋ Esempio rapido</button>
+  <button type="button" class="light" onclick="savePlannerNow(this)">💾 Salva</button>
+  <button type="button" class="secondary" onclick="loadPlannerNow(this)">↻ Carica</button>
+  <button type="button" class="danger" onclick="clearAll()">🗑 Cancella tutto</button>
+  <button type="button" class="report-btn" onclick="viewReport()">▣ Visualizza report</button>
+  <span id="status"></span>
+</div>
+
+<section>
+<h2>TESTATA</h2>
+<div class="grid">
+  <div class="field c6"><label>Titolo del viaggio</label><input id="title" placeholder="Es. Trasferta commerciale Repubblica Ceca" oninput="updateHeader()"></div>
+  <div class="field c3"><label>Data inizio</label><input id="startDate" type="date" onchange="updateHeader()"></div>
+  <div class="field c3"><label>Data fine</label><input id="endDate" type="date" onchange="updateHeader()"></div>
+</div>
+</section>
+
+<div id="sections"></div>
+
+<section>
+<h2>ALLEGATI VARI</h2>
+<div class="attachment-area no-print">
+  <input type="file" id="globalFiles" class="file-input" accept="application/pdf" multiple onchange="addGlobalFiles(this.files)">
+  <div class="small">Solo PDF. I file vengono mantenuti localmente nel browser. Se IndexedDB non è disponibile, viene utilizzato automaticamente un archivio locale alternativo.</div>
+</div>
+<div id="globalFileList"></div>
+<div class="pdf-manifest">
+  <h3>Allegati inclusi nel dossier</h3>
+  <div id="pdfAttachmentManifest">Nessun allegato.</div>
+  <div class="small no-print" style="margin-top:6px">
+    Gli allegati PDF sono archiviati localmente nel browser e vengono elencati nel riepilogo.
+  </div>
+</div>
+</section>
+</div>
+
+<script src="travel-work-planner_v25.js"></script>
+
+<script>
+
+async function savePlannerNow(btn){
+  if(btn) btn.disabled=true;
+  try{
+    const ok=await saveData(true);
+    if(!ok) setStatus('Salvataggio USB non riuscito');
+  }finally{
+    if(btn) btn.disabled=false;
+  }
+}
+async function loadPlannerNow(btn){
+  if(btn) btn.disabled=true;
+  try{
+    await loadData();
+  }finally{
+    if(btn) btn.disabled=false;
+  }
+}
+async function viewReport(){
+  try{ saveSessionState(); }catch(e){ console.warn('Salvataggio sessione prima del report non riuscito',e); }
+  location.href='Travel_Report.html';
+}
+(()=>{const f=location.pathname.split(/[\\/]/).pop()||"Home.html";const map={"Home.html":"home","Cerca_Voli_Desktop.html":"voli","Cerca_Hotel_Desktop.html":"hotel","Cerca_Autonoleggio_Desktop.html":"auto","Travel_Planner.html":"planner"};document.querySelector(`.tw-tabs a[data-page="${map[f]||"home"}"]`)?.classList.add("active");})();
+</script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}</script>
+</body>
+</html>

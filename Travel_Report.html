@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Travel Work Planner — Travel Report</title>
+<style>
+:root{--navy:#092b4c;--blue:#178ff0;--cyan:#38a9f4;--bg:#f3f7fb;--line:#dfe8f1;--text:#102b46;--muted:#607b96;--soft:#eef6fd;--green:#1a9b79}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",Arial,sans-serif;font-size:14px}.tw-topnav{position:sticky;top:0;z-index:20;height:68px;background:rgba(255,255,255,.97);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);box-shadow:0 4px 18px rgba(20,55,85,.08);display:flex;align-items:center;padding:0 34px;gap:30px}.tw-topbrand{display:flex;align-items:center;gap:10px;color:var(--navy);font-size:18px;font-weight:800;white-space:nowrap}.tw-toplogo{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#0b4b7d,#178ff0);color:#fff;display:grid;place-items:center;font-size:20px;box-shadow:0 5px 12px rgba(23,143,240,.22)}.tw-tabs{display:flex;align-items:center;gap:4px;height:100%;flex:1}.tw-tabs a{height:100%;display:inline-flex;align-items:center;gap:7px;padding:0 14px;color:#526d87;text-decoration:none;font-size:13px;font-weight:700;border-bottom:3px solid transparent}.tw-tabs a.active{color:var(--blue);border-bottom-color:var(--blue);background:#f4f9fe}.tw-topstatus{font-size:11px;color:#6b8298;white-space:nowrap}
+.wrap{max-width:1500px;margin:0 auto;padding:24px 34px 40px}.hero{min-height:165px;border-radius:22px;background-image:linear-gradient(90deg,rgba(6,35,59,.95),rgba(6,35,59,.58),rgba(6,35,59,.15)),url('home-planner.jpg');background-size:cover;background-position:center;display:flex;align-items:flex-end;padding:30px 34px;color:#fff;box-shadow:0 12px 35px rgba(20,55,85,.12)}.hero-kicker{font-size:11px;letter-spacing:1.8px;color:#83d1ff;font-weight:800;margin-bottom:8px}.hero h1{font-size:32px;margin:0 0 6px}.hero p{margin:0;color:#e9f5ff}.actions{display:flex;justify-content:flex-end;gap:10px;margin:14px 0}.btn{border:0;border-radius:10px;padding:11px 17px;font-weight:800;cursor:pointer}.btn-primary{background:var(--blue);color:#fff;box-shadow:0 6px 16px rgba(23,143,240,.22)}.btn-light{background:#fff;color:var(--navy);border:1px solid var(--line)}
+.summary{display:grid;grid-template-columns:1.6fr 1fr;gap:18px;margin-top:18px}.card{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 8px 25px rgba(20,55,85,.06);padding:20px}.card h2{font-size:18px;margin:0 0 14px;color:#123d63}.trip-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.meta{background:#f7fbff;border:1px solid #e2edf6;border-radius:12px;padding:12px}.meta .label{font-size:11px;color:var(--muted);font-weight:700}.meta .value{font-weight:800;margin-top:4px}.timeline{position:relative;margin-top:12px}.timeline:before{content:'';position:absolute;left:15px;top:12px;bottom:12px;width:2px;background:#d5e8f7}.item{position:relative;display:flex;gap:14px;padding:9px 0}.dot{width:32px;height:32px;border-radius:50%;background:#eaf6ff;border:1px solid #c9e7fb;display:grid;place-items:center;z-index:1;font-size:15px}.item-body{flex:1;padding:2px 0}.item-title{font-weight:800}.item-sub{font-size:12px;color:var(--muted);margin-top:3px}.money-row{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #edf2f6}.money-row:last-child{border-bottom:0}.money-row.total{font-size:17px;color:var(--navy);font-weight:900;padding-top:16px}.map-card{margin-top:18px}.report-map{margin-top:14px;min-height:210px;border-radius:14px;overflow:hidden;background:#eef3f7;border:1px solid var(--line);display:flex;align-items:center;justify-content:center}.report-map img{display:block;width:100%;height:auto;max-height:340px;object-fit:cover}.report-photo{margin-top:16px;border-radius:14px;overflow:hidden;height:180px;background:url('home-planner.jpg') center/cover}.photo-caption{padding:11px 13px;background:#fff;border:1px solid var(--line);border-top:0;border-radius:0 0 14px 14px;font-size:12px;color:var(--muted)}.empty{color:var(--muted);font-size:13px;padding:10px 0}.details{margin-top:18px}.details-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eaf8f4;color:#168064;font-size:11px;font-weight:800;margin-left:6px}.footer{margin-top:20px;color:#8aa0b3;font-size:11px;display:flex;justify-content:space-between}
+/* hidden planner bridge: the shared JS needs these nodes to load the USB data and generate the PDF */
+#plannerBridge{display:none}
+@media(max-width:900px){.tw-topnav{padding:0 12px;gap:12px;height:60px}.tw-topbrand{font-size:15px}.tw-toplogo{width:32px;height:32px}.tw-tabs{overflow-x:auto}.tw-tabs a{font-size:12px;padding:0 10px;white-space:nowrap}.tw-topstatus{display:none}.wrap{padding:14px 12px 28px}.summary,.details-grid{grid-template-columns:1fr}.trip-meta{grid-template-columns:1fr 1fr}.hero{min-height:150px;padding:24px}.hero h1{font-size:27px}}
+@media print{.tw-topnav,.actions{display:none}.wrap{padding:0}.hero{border-radius:0;box-shadow:none}.card{box-shadow:none;break-inside:avoid}}
+</style>
+<script src="cloud-access.js"></script>
+<link rel="manifest" href="manifest.webmanifest">
+</head>
+<body>
+<nav class="tw-topnav"><div class="tw-topbrand"><span class="tw-toplogo">✈</span><span>Travel Work Planner</span></div><div class="tw-tabs"><a href="Home.html">⌂ Home</a><a href="Cerca_Voli_Desktop.html">✈ Voli</a><a href="Cerca_Hotel_Desktop.html">▣ Hotel</a><a href="Cerca_Autonoleggio_Desktop.html">🚗 Autonoleggio</a><a href="Travel_Planner.html" class="active">▦ Planner</a></div><div class="tw-topstatus">TRAVEL REPORT</div></nav>
+<main class="wrap">
+<section class="hero"><div><div class="hero-kicker">TRAVEL MANAGEMENT · REPORT</div><h1 id="rTitle">Travel Report</h1><p id="rDates">Riepilogo del viaggio</p></div></section>
+<div class="actions"><button class="btn btn-light" onclick="location.href='Travel_Planner.html'">← Torna al Planner</button><button class="btn btn-primary" onclick="exportTravelReport()">▣ ESPORTA PDF</button></div>
+<section class="card"><h2>Riepilogo viaggio</h2><div class="trip-meta"><div class="meta"><div class="label">DESTINAZIONE</div><div class="value" id="rDestination">—</div></div><div class="meta"><div class="label">PERIODO</div><div class="value" id="rPeriod">—</div></div><div class="meta"><div class="label">PASSEGGERI</div><div class="value" id="rPassengers">—</div></div><div class="meta"><div class="label">STATO</div><div class="value">Planning</div></div></div></section>
+<section class="card map-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 style="margin-bottom:0">Mappa dell’itinerario</h2><span class="small">Aeroporti e luoghi del planning</span></div><div id="reportMap" class="report-map"><div class="empty">Generazione mappa…</div></div></section>
+<div class="summary"><section class="card"><h2>Itinerario</h2><div id="timeline" class="timeline"></div></section><section class="card"><h2>Riepilogo economico</h2><div id="money"></div><div class="report-photo"></div><div class="photo-caption" id="photoCaption">Travel Work Planner · sintesi del viaggio</div></section></div>
+<section class="card details"><h2>Dettagli del planning</h2><div class="details-grid"><div id="flightDetails"></div><div id="hotelDetails"></div><div id="carDetails"></div><div id="extraDetails"></div></div></section>
+<section class="card details"><h2>Allegati del planning</h2><div id="reportAttachments" class="empty">Nessun allegato PDF.</div><div class="small" style="margin-top:8px;color:#607b96">Gli allegati PDF verranno incorporati nel documento quando premi “ESPORTA PDF”.</div></section>
+<div class="footer"><span>Travel Work Planner</span><span id="footerVersion">Travel Report</span></div>
+</main>
+<div id="plannerBridge"><input id="title"><input id="startDate"><input id="endDate"><span id="status"></span><div id="docTitle"></div><div id="docDates"></div><div id="sections"></div><div id="globalFileList"></div><div id="pdfAttachmentManifest"></div></div>
+<script src="pdf-lib.min.js"></script><script src="travel-work-planner_v25.js"></script>
+<script>
+const escR=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const fmtDate=x=>{if(!x)return '';const [y,m,d]=String(x).split('-');return d&&m&&y?`${d}/${m}/${y}`:x};
+const euro=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).format(Number(v)||0);
+function getData(){return window.twpGetData?window.twpGetData():null}
+function rows(id){const d=getData();return d?.sections?.[id]||[]}
+async function loadReportData(){
+  let parsed=null;
+  // Se il Report è aperto dalla sessione corrente, usa prima quella memoria:
+  // così non sovrascrive il lavoro corrente con un vecchio salvataggio USB.
+  try{ const raw=sessionStorage.getItem('Travel_Work_Planner_Session_v25'); if(raw) parsed=JSON.parse(raw); }catch(e){ console.warn('Report: sessione non disponibile:',e); }
+  if(parsed){
+    window._twpReportAttachments=[];
+    if(window.twpSetData) window.twpSetData(parsed); else return false;
+    return true;
+  }
+  try{
+    const r=await fetch('/api/planner-data',{cache:'no-store'});
+    if(r.ok){const obj=await r.json(); if(obj && obj.ok!==false && obj.data){ parsed=obj.data; window._twpReportAttachments=Array.isArray(obj.attachments)?obj.attachments:[]; }}
+  }catch(e){console.warn('Report: API USB non disponibile:',e)}
+  if(!parsed){ try{const raw=localStorage.getItem('travelWorkPlannerData_v13');if(raw)parsed=JSON.parse(raw);}catch(e){console.warn('Report: backup browser non disponibile:',e)} }
+  if(!parsed) return false;
+  if(window.twpSetData) window.twpSetData(parsed); else return false;
+  try{ if(window.twpRestoreAttachments && Array.isArray(window._twpReportAttachments)) await window.twpRestoreAttachments(window._twpReportAttachments); }catch(e){console.warn('Report: ripristino allegati USB fallito:',e)}
+  return true;
+}
+async function getTravelMapImageReport(){
+ try{return window.twpGetTravelMapImage4?await window.twpGetTravelMapImage4():null}catch(e){return null}
+}
+async function renderReport(){
+ const d=getData();
+ if(!d || !d.sections) return false;
+ document.getElementById('rTitle').textContent=d.title||'Travel Report';
+ const period=(d.startDate||d.endDate)?`${d.startDate?fmtDate(d.startDate):''}${d.startDate&&d.endDate?' → ':''}${d.endDate?fmtDate(d.endDate):''}`:'Periodo non specificato';
+ document.getElementById('rDates').textContent=period;
+ document.getElementById('rPeriod').textContent=period;
+ const flights=rows('flights'), hotels=rows('hotels'), cars=rows('cars'), restaurants=rows('restaurants'), places=rows('places'), travelers=rows('travelers');
+ const destinations=[]; flights.forEach(f=>{if(f.partenza)destinations.push(String(f.partenza).split(' — ')[0]);if(f.arrivo)destinations.push(String(f.arrivo).split(' — ')[0])});
+ const dest=[...new Set(destinations.filter(Boolean))]; document.getElementById('rDestination').textContent=dest.length?dest.join(' → '):'Da definire';
+ document.getElementById('rPassengers').textContent=travelers.length?`${travelers.length} ${travelers.length===1?'persona':'persone'}`:'Non specificato';
+ const events=[];
+ // Nel report web l'itinerario contiene esclusivamente VOLI + APPUNTAMENTI AGENDA.
+ // I voli sono sempre le estremità: il primo volo cronologico apre il viaggio,
+ // l'ultimo lo chiude, indipendentemente dall'ordine di inserimento.
+ const orderedFlights=flights.filter(f=>f?.partenza&&f?.arrivo).slice().sort((a,b)=>{
+   const ka=String(a.dataPartenza||'')+'T'+String(a.oraPartenza||'00:00');
+   const kb=String(b.dataPartenza||'')+'T'+String(b.oraPartenza||'00:00');
+   return ka.localeCompare(kb);
+ });
+ const agenda=rows('agenda').filter(a=>a&&(a.data||a.ora||a.descrizione||a.luogo)).slice().sort((a,b)=>{
+   const ka=String(a.data||'')+'T'+String(a.ora||'00:00');
+   const kb=String(b.data||'')+'T'+String(b.ora||'00:00');
+   return ka.localeCompare(kb);
+ });
+ orderedFlights.forEach((f,idx)=>{
+   const role=orderedFlights.length>1 ? (idx===0?'Andata':idx===orderedFlights.length-1?'Ritorno':'Volo') : 'Volo';
+   events.push({kind:'flight',date:f.dataPartenza||'',time:f.oraPartenza||'',icon:'✈',title:`${role} · ${f.compagnia||''} ${f.numeroVolo||''}`.trim(),sub:`${f.partenza||'—'} → ${f.arrivo||'—'}${f.pnr?' · PNR '+f.pnr:''}`});
+ });
+ agenda.forEach(a=>events.push({kind:'agenda',date:a.data||'',time:a.ora||'',icon:'A',title:a.descrizione||a.luogo||'Appuntamento',sub:`${fmtDate(a.data)||'Data da definire'}${a.ora?' · '+a.ora:''}${a.luogo?' · '+a.luogo:''}${a.note?' · '+a.note:''}`}));
+ events.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+ // Forziamo comunque il primo e l'ultimo elemento a essere i voli estremi.
+ if(orderedFlights.length>1){
+   const fs=events.filter(e=>e.kind==='flight');
+   const others=events.filter(e=>e.kind!=='flight');
+   const startKey=fs[0].date+fs[0].time, endKey=fs[fs.length-1].date+fs[fs.length-1].time;
+   const between=others.filter(e=>(e.date+e.time)>=startKey&&(e.date+e.time)<=endKey);
+   events.length=0; events.push(fs[0],...between,...fs.slice(1,-1),fs[fs.length-1]);
+ }
+ document.getElementById('timeline').innerHTML=events.length?events.map(e=>`<div class="item"><div class="dot">${e.icon}</div><div class="item-body"><div class="item-title">${escR(e.title)}</div><div class="item-sub">${escR(e.sub)}</div></div></div>`).join(''):'<div class="empty">Nessun elemento inserito nel planning.</div>';
+ const budget=rows('budget');const total=budget.reduce((s,r)=>s+((Number(r.costo)||0)*(r.perViaggiatore?Math.max(1,Number(r.viaggiatori)||1):1)),0);const sustained=budget.reduce((s,r)=>s+(r.sostenuta?((Number(r.costo)||0)*(r.perViaggiatore?Math.max(1,Number(r.viaggiatori)||1):1)):0),0);
+ const byCat={};budget.forEach(r=>{const v=(Number(r.costo)||0)*(r.perViaggiatore?Math.max(1,Number(r.viaggiatori)||1):1);byCat[r.categoria||'Varie']=(byCat[r.categoria||'Varie']||0)+v});
+ document.getElementById('money').innerHTML=`<div class="money-row"><span>Totale viaggio</span><strong>${euro(total)}</strong></div><div class="money-row"><span>Già sostenuto</span><strong>${euro(sustained)}</strong></div><div class="money-row"><span>Da sostenere</span><strong>${euro(total-sustained)}</strong></div><div class="money-row total"><span>Totale</span><strong>${euro(total)}</strong></div>`+(Object.keys(byCat).length?`<div class="empty">${Object.entries(byCat).map(([k,v])=>`${escR(k)}: <b>${euro(v)}</b>`).join(' · ')}</div>`:'');
+ const list=(title,arr,mapper)=>`<div><b>${title}</b><div class="empty">${arr.length?arr.map(mapper).join('<br>'):'Nessun dato'}</div></div>`;
+ document.getElementById('flightDetails').innerHTML=list('Voli',flights,f=>`${escR(f.partenza||'—')} → ${escR(f.arrivo||'—')} · ${escR(fmtDate(f.dataPartenza)||'—')} ${escR(f.oraPartenza||'')}`);
+ document.getElementById('hotelDetails').innerHTML=list('Hotel',hotels,h=>`${escR(h.nome||'Hotel')} · ${escR(fmtDate(h.checkin)||'—')} → ${escR(fmtDate(h.checkout)||'—')}`);
+ document.getElementById('carDetails').innerHTML=list('Autonoleggio',cars,c=>`${escR(fmtDate(c.prelievoData)||'—')} → ${escR(fmtDate(c.riconsegnaData)||'—')}`);
+ document.getElementById('extraDetails').innerHTML=list('Servizi extra',restaurants.concat(places),x=>escR(x.nome||'Voce'));
+ try{
+   if(window.twpReady) await window.twpReady;
+   const files=window.getDossierFiles4?await window.getDossierFiles4():[];
+   document.getElementById('reportAttachments').innerHTML=files.length?files.map(f=>`<div style="padding:6px 0;border-bottom:1px solid #edf2f6">📎 <b>${escR(f.name)}</b></div>`).join(''):'Nessun allegato PDF.';
+ }catch(e){document.getElementById('reportAttachments').textContent='Allegati presenti nel Planner; verranno inclusi nell’esportazione PDF.';}
+ try{
+   const map=await getTravelMapImageReport();
+   document.getElementById('reportMap').innerHTML=map?.dataUrl?`<img src="${map.dataUrl}" alt="Mappa dell’itinerario">`:'<div class="empty">Mappa non disponibile: verifica la connessione Internet del computer.</div>';
+ }catch(e){document.getElementById('reportMap').innerHTML='<div class="empty">Mappa non disponibile.</div>';}
+ return true;
+}
+async function exportTravelReport(){
+ try{
+   if(window.twpReady) await window.twpReady;
+   const ok=await loadReportData();
+   if(!ok){alert('Nessun dato salvato trovato. Torna al Planner, premi SALVA e riprova.');return;}
+   await renderReport();
+   if(!window.twpCreateTravelReportPDF){alert('Motore report non disponibile.');return;}
+   await window.twpCreateTravelReportPDF();
+ }catch(e){console.error(e);alert('Errore durante l’esportazione del Travel Report.\n\n'+(e.message||e));}
+}
+async function startReport(){
+ const ok=await loadReportData();
+ if(!ok){
+   document.getElementById('rDates').textContent='Nessun dato salvato trovato. Torna al Planner, compila e premi SALVA.';
+   document.getElementById('reportAttachments').textContent='Nessun dato salvato.';
+   return;
+ }
+ await renderReport();
+}
+startReport();
+</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}</script>
+</body></html>

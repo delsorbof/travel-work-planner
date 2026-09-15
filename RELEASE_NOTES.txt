@@ -1,0 +1,10 @@
+TRAVEL WORK PLANNER V25.0.77
+
+PDF REPORT
+- Agenda / Ristoranti / Luoghi da visitare ora hanno impaginazione dinamica.
+- Ogni pagina operativa contiene fino a 6 schede per colonna.
+- Se una sezione supera lo spazio disponibile, continua automaticamente nelle pagine successive.
+- Eliminata la dicitura "+ X altri elementi nel Planner": tutti gli elementi vengono riportati nel report.
+- La pagina budget viene generata dopo tutte le pagine operative dinamiche.
+- Gli allegati PDF seguono sempre le pagine del report.
+- Mantenute le correzioni grafiche e cartografiche della V25.0.76.

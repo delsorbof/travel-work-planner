@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: travel-work-planner-v26
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: TWP_ACCESS_PASSWORD
+        sync: false
+      - key: APIFY_API_TOKEN
+        sync: false
+      - key: HOTELBEDS_API_KEY
+        sync: false
+      - key: HOTELBEDS_API_SECRET
+        sync: false
+      - key: HOTELBEDS_CERT_PEM
+        sync: false
+      - key: HOTELBEDS_KEY_PEM
+        sync: false
+      - key: HOTELBEDS_KEY_PASSWORD
+        sync: false
+      - key: HOTELBEDS_API_BASE_URL
+        value: https://api-mtls.test.hotelbeds.com
+      - key: TRANSITOUS_API_BASE_URL
+        value: https://api.transitous.org/api
+      - key: TRAIN_API_BASE_URL
+        value: https://api.transitous.org/api

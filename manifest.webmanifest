@@ -1,0 +1,9 @@
+{
+  "name":"Travel Work Planner",
+  "short_name":"Travel Planner",
+  "start_url":"/Home.html",
+  "display":"standalone",
+  "background_color":"#f3f7fb",
+  "theme_color":"#092b4c",
+  "icons":[]
+}
