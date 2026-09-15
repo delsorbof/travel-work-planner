@@ -105,51 +105,49 @@ function renderList(arr,mode){
 }
 function render(){renderList(offers,'outbound')}
 function setupPicker(id){
- const input=$(id),box=$(id+'Suggestions'); let timer=null, seq=0;
+ const input=$(id),box=$(id+'Suggestions'); let timer=null;
  const hide=()=>box.classList.add('hidden');
- const run=async(q)=>{
-   const mySeq=++seq;
-   try{await suggestPlaces(id,q,null,mySeq)}catch(e){console.warn(e)}
+ const show=(q)=>{
+   const arr=localAirportSuggestions(q);
+   if(input.value.trim()!==q)return;
+   if(!arr.length){
+     box.innerHTML='<div class="suggestion"><span>Nessun aeroporto locale trovato. Puoi inserire direttamente un codice IATA (es. FCO).</span></div>';
+   }else{
+     box.innerHTML=arr.map((p,i)=>`<div class="suggestion" data-index="${i}" role="option"><b>${esc(p.iata||'')} — ${esc(p.name||'')}</b><span>${esc(p.city||'')} · ${esc(p.country||'')}</span></div>`).join('');
+     box.querySelectorAll('.suggestion').forEach((el,i)=>el._place=arr[i]);
+   }
+   box.classList.remove('hidden');
  };
  input.addEventListener('input',()=>{
    input.dataset.iata=''; clearTimeout(timer); hide();
    const q=input.value.trim(); if(q.length<2)return;
-   timer=setTimeout(()=>run(q),0);
+   // Nessuna chiamata al server: autocomplete locale e immediato.
+   show(q);
  });
- input.addEventListener('focus',()=>{
-   const q=input.value.trim(); if(q.length>=2)run(q);
- });
+ input.addEventListener('focus',()=>{const q=input.value.trim();if(q.length>=2)show(q)});
  input.addEventListener('keydown',e=>{if(e.key==='Escape')hide()});
  box.addEventListener('pointerdown',e=>{
-   const el=e.target.closest('.suggestion'); if(!el)return;
+   const el=e.target.closest('.suggestion'); if(!el||!el._place)return;
    e.preventDefault(); const p=el._place;
-   if(p){
-     const code=(p.iata||p.cityIata||'').toUpperCase();
-     input.value=code ? `${code} — ${p.name||p.city||''}`.trim() : (p.name||p.city||input.value);
-     input.dataset.iata=code;
-   }
+   const code=(p.iata||'').toUpperCase();
+   input.value=code ? `${code} — ${p.name||p.city||''}`.trim() : (p.name||p.city||input.value);
+   input.dataset.iata=code;
    hide();
  });
- document.addEventListener('pointerdown',e=>{
-   if(!box.contains(e.target)&&e.target!==input)hide();
- });
+ document.addEventListener('pointerdown',e=>{if(!box.contains(e.target)&&e.target!==input)hide()});
 }
 
-async function suggestPlaces(id,q,signal,seq){
- const input=$(id),box=$(id+'Suggestions');
- const arr=localAirportSuggestions(q);
- if(input.value.trim()!==q)return;
- if(!arr.length){
-   box.innerHTML='<div class="suggestion"><span>Nessun aeroporto trovato. Prova città o codice IATA.</span></div>';
-   box.classList.remove('hidden');
-   return;
- }
- box.innerHTML=arr.map((p,i)=>`<div class="suggestion" data-index="${i}" role="option"><b>${esc(p.iata||'')} — ${esc(p.name||'')}</b><span>${esc(p.city||'')} · ${esc(p.country||'')}</span></div>`).join('');
- box.querySelectorAll('.suggestion').forEach((el,i)=>el._place=arr[i]);
- box.classList.remove('hidden');
+// Risolve sempre dal catalogo locale. Non interroga il server durante o dopo la digitazione.
+function resolvePlace(id){
+ const input=$(id),q=input.value.trim(),existing=(input.dataset.iata||'').toUpperCase();
+ if(existing&&/^[A-Z]{3}$/.test(existing))return ({'MPX':'MXP'}[existing]||existing);
+ const shown=q.match(/^([A-Za-z]{3})\s*[—-]/);
+ if(shown){const code=shown[1].toUpperCase();input.dataset.iata=({'MPX':'MXP'}[code]||code);return input.dataset.iata}
+ if(/^[A-Za-z]{3}$/.test(q)){input.dataset.iata=({'MPX':'MXP'}[q.toUpperCase()]||q.toUpperCase());return input.dataset.iata}
+ const first=localAirportSuggestions(q)[0];
+ if(!first){input.dataset.iata='';return q}
+ const code=(first.iata||'').toUpperCase();input.dataset.iata=({'MPX':'MXP'}[code]||code);return input.dataset.iata||q;
 }
-
-async function resolvePlace(id){const input=$(id),q=input.value.trim(),existing=input.dataset.iata||'';if(existing&&/^[A-Z]{3}$/.test(existing))return ({'MPX':'MXP'}[existing]||existing);const shown=q.match(/^([A-Za-z]{3})\s*[—-]/);if(shown){const code=shown[1].toUpperCase();input.dataset.iata=code;return ({'MPX':'MXP'}[code]||code)}if(/^[A-Za-z]{3}$/.test(q)){input.dataset.iata=q.toUpperCase();return ({'MPX':'MXP'}[q.toUpperCase()]||q.toUpperCase())}const local=localAirportSuggestions(q);const first=local[0];if(!first){const r=await fetch('/api/place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});const d=await r.json();if(!r.ok)throw Error(d.error||'Impossibile risolvere il luogo');const remote=(d.places||[])[0];if(!remote){input.dataset.iata='';return q}input.dataset.iata=({'MPX':'MXP'}[String(remote.iata||remote.cityIata||'').toUpperCase()]||String(remote.iata||remote.cityIata||'').toUpperCase());return input.dataset.iata}if(!first){input.dataset.iata='';return q}const code=first.iata||first.cityIata;if(!code){input.dataset.iata='';return q}input.dataset.iata=({'MPX':'MXP'}[String(code).toUpperCase()]||String(code).toUpperCase());return input.dataset.iata}
 function formBody(){return {origin:$('origin').dataset.iata||$('origin').value.trim(),destination:$('destination').dataset.iata||$('destination').value.trim(),departure_date:$('departure').value,return_date:$('return').value,passengers:$('pax').value,cabin:$('cabin').value,direct:$('direct').checked,currency:'EUR',market:'IT',locale:'it-IT'}}
 async function apiSearch(body){const r=await fetch('/api/search-flights',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'Ricerca fallita');return d}
 async function searchFlights(){
