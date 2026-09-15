@@ -1002,6 +1002,32 @@ AIRPORT_CITY_ALIASES = {
 
 # Airports that commonly serve a metropolitan city even when the municipality
 # field is a nearby suburb. This is intentionally small and only expands major hubs.
+# Built-in fallback catalog for the most common Italian/European airports.
+# It keeps autocomplete usable even when the remote OurAirports index is slow or unavailable.
+STATIC_AIRPORTS = [
+    ('FCO','Roma Fiumicino','Rome','IT','large_airport'), ('CIA','Roma Ciampino','Rome','IT','medium_airport'),
+    ('MXP','Milano Malpensa','Milan','IT','large_airport'), ('LIN','Milano Linate','Milan','IT','medium_airport'), ('BGY','Bergamo Orio al Serio','Bergamo','IT','large_airport'),
+    ('NAP','Napoli Capodichino','Naples','IT','large_airport'), ('VCE','Venezia Marco Polo','Venice','IT','large_airport'),
+    ('BLQ','Bologna Guglielmo Marconi','Bologna','IT','large_airport'), ('TRN','Torino Caselle','Turin','IT','large_airport'),
+    ('FLR','Firenze Peretola','Florence','IT','medium_airport'), ('PSA','Pisa Galileo Galilei','Pisa','IT','large_airport'),
+    ('GOA','Genova Cristoforo Colombo','Genoa','IT','medium_airport'), ('BRI','Bari Karol Wojtyla','Bari','IT','large_airport'),
+    ('CTA','Catania Fontanarossa','Catania','IT','large_airport'), ('PMO','Palermo Falcone Borsellino','Palermo','IT','large_airport'),
+    ('CAG','Cagliari Elmas','Cagliari','IT','large_airport'), ('OLB','Olbia Costa Smeralda','Olbia','IT','large_airport'),
+    ('VRN','Verona Villafranca','Verona','IT','large_airport'), ('TSF','Treviso Canova','Treviso','IT','medium_airport'),
+    ('LHR','London Heathrow','London','GB','large_airport'), ('LGW','London Gatwick','London','GB','large_airport'), ('STN','London Stansted','London','GB','large_airport'),
+    ('CDG','Paris Charles de Gaulle','Paris','FR','large_airport'), ('ORY','Paris Orly','Paris','FR','large_airport'),
+    ('MAD','Madrid Barajas','Madrid','ES','large_airport'), ('BCN','Barcelona El Prat','Barcelona','ES','large_airport'),
+    ('AMS','Amsterdam Schiphol','Amsterdam','NL','large_airport'), ('FRA','Frankfurt','Frankfurt','DE','large_airport'),
+    ('MUC','Munich','Munich','DE','large_airport'), ('VIE','Vienna','Vienna','AT','large_airport'),
+    ('ZRH','Zurich','Zurich','CH','large_airport'), ('BRU','Brussels','Brussels','BE','large_airport'),
+    ('LIS','Lisbon','Lisbon','PT','large_airport'), ('ATH','Athens','Athens','GR','large_airport'),
+    ('DUB','Dublin','Dublin','IE','large_airport'), ('IST','Istanbul','Istanbul','TR','large_airport'),
+]
+
+def _static_airport_rows():
+    return [{'iata':i,'name':n,'city':c,'country':co,'keywords':'','type':t,'lat':None,'lon':None} for i,n,c,co,t in STATIC_AIRPORTS]
+
+
 AIRPORT_METRO_ALIASES = {
     'milan':['milan','milano','bergamo'],'milano':['milan','milano','bergamo'],
     'rome':['rome','roma'],'roma':['rome','roma'],'london':['london','londra'],
@@ -1035,18 +1061,29 @@ def _airport_download_index():
     return rows
 
 def _load_airport_index():
+    rows = []
     try:
         if AIRPORT_INDEX_FILE.exists() and AIRPORT_INDEX_FILE.stat().st_size>1000:
             data=json.loads(AIRPORT_INDEX_FILE.read_text(encoding='utf-8'))
             rows=data.get('airports') if isinstance(data,dict) else None
             version=data.get('index_version') if isinstance(data,dict) else None
-            # Rebuild once after the resolver is upgraded, so an old USB runtime
-            # cache cannot keep an incomplete airport list.
-            if version == AIRPORT_INDEX_VERSION and isinstance(rows,list) and rows:
-                return rows
-            print('Airport index cache outdated; refreshing from OurAirports.')
-    except Exception as e: print('Airport index read failed:',e)
-    return _airport_download_index()
+            if version != AIRPORT_INDEX_VERSION:
+                rows = None
+    except Exception as e:
+        print('Airport index read failed:',e)
+    if not isinstance(rows,list) or not rows:
+        try:
+            rows=_airport_download_index()
+        except Exception as e:
+            print('Airport index download failed; using built-in fallback:',e)
+            rows=[]
+    # Always merge the built-in catalog. Remote data remains useful for the long tail,
+    # while common airports stay available even if the remote dataset is incomplete.
+    by_code={str(r.get('iata') or '').upper():r for r in rows if isinstance(r,dict) and r.get('iata')}
+    for r in _static_airport_rows():
+        by_code.setdefault(r['iata'], r)
+    return list(by_code.values())
+
 
 def _airport_query_variants(q):
     base=_fold_search_text(q); variants={base}

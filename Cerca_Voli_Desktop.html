@@ -63,6 +63,11 @@ body{padding-top:0!important}
 <div class="card"><div class="muted"><b>Nota:</b> Skyscanner tramite Apify fornisce itinerari, prezzi, compagnie, scali, durate e segmenti. I prezzi sono indicativi e possono cambiare quando si passa al fornitore; i dati sui bagagli non sono garantiti dal feed e vanno verificati prima dell’acquisto.</div></div>
 </div><div id="busyOverlay" class="busy-overlay hidden" aria-live="assertive" aria-busy="true"><div class="busy-box"><div class="spinner"></div><div class="busy-title">Attendi, ricerca in corso…</div><div id="busyText" class="busy-text">Sto interrogando Skyscanner tramite Apify. Non cliccare nuovamente.</div></div></div><script>
 const $=id=>document.getElementById(id);
+const LOCAL_AIRPORTS=[
+['FCO','Roma Fiumicino','Roma','IT'],['CIA','Roma Ciampino','Roma','IT'],['MXP','Milano Malpensa','Milano','IT'],['LIN','Milano Linate','Milano','IT'],['BGY','Bergamo Orio al Serio','Bergamo','IT'],['NAP','Napoli Capodichino','Napoli','IT'],['VCE','Venezia Marco Polo','Venezia','IT'],['BLQ','Bologna Guglielmo Marconi','Bologna','IT'],['TRN','Torino Caselle','Torino','IT'],['FLR','Firenze Peretola','Firenze','IT'],['PSA','Pisa Galileo Galilei','Pisa','IT'],['GOA','Genova Cristoforo Colombo','Genova','IT'],['BRI','Bari Karol Wojtyla','Bari','IT'],['CTA','Catania Fontanarossa','Catania','IT'],['PMO','Palermo Falcone Borsellino','Palermo','IT'],['CAG','Cagliari Elmas','Cagliari','IT'],['LHR','London Heathrow','Londra','GB'],['LGW','London Gatwick','Londra','GB'],['CDG','Paris Charles de Gaulle','Parigi','FR'],['ORY','Paris Orly','Parigi','FR'],['MAD','Madrid Barajas','Madrid','ES'],['BCN','Barcelona El Prat','Barcellona','ES'],['AMS','Amsterdam Schiphol','Amsterdam','NL'],['FRA','Frankfurt','Francoforte','DE'],['MUC','Munich','Monaco','DE'],['VIE','Vienna','Vienna','AT'],['ZRH','Zurich','Zurigo','CH'],['BRU','Brussels','Bruxelles','BE'],['LIS','Lisbon','Lisbona','PT'],['ATH','Athens','Atene','GR'],['DUB','Dublin','Dublino','IE'],['IST','Istanbul','Istanbul','TR']
+].map(([iata,name,city,country])=>({iata,name,city,country,type:'airport'}));
+function localAirportSuggestions(q){const n=(q||'').toLocaleLowerCase('it').normalize('NFD').replace(/[\u0300-\u036f]/g,'');return LOCAL_AIRPORTS.filter(p=>[p.iata,p.name,p.city].join(' ').toLocaleLowerCase('it').normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(n)).slice(0,10);}
+
 let offers=[], selected=null, searchMode='outbound', outboundOffer=null, returnOffers=[], returnOffer=null, busy=false;
 function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function money(v,c){return v==null?'—':`${Number(v).toFixed(2)} ${c||''}`.trim()}
@@ -117,16 +122,19 @@ function setupPicker(id){
 
 async function suggestPlaces(id,q,signal,seq){
  const input=$(id),box=$(id+'Suggestions');
- const r=await fetch('/api/place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q}),signal});
- const d=await r.json();
- if(!r.ok)throw Error(d.error||'Suggerimenti non disponibili');
+ let arr=[];
+ try{
+   const r=await fetch('/api/place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q}),signal});
+   const text=await r.text(); let d={}; try{d=text?JSON.parse(text):{}}catch(_){}
+   if(r.ok) arr=(d.places||[]).slice(0,10);
+ }catch(e){ if(e.name==='AbortError')throw e; }
  if(input.value.trim()!==q)return;
- const arr=(d.places||[]).slice(0,10);
+ if(!arr.length) arr=localAirportSuggestions(q);
  if(!arr.length){box.innerHTML='<div class="suggestion"><span>Nessuna corrispondenza locale. Puoi comunque inserire un codice IATA.</span></div>';box.classList.remove('hidden');return}
  box.innerHTML=arr.map((p,i)=>`<div class="suggestion" data-index="${i}" role="option"><b>${esc(p.iata||p.cityIata||'')} — ${esc(p.name||p.city||'')}</b><span>${esc(p.city||'')} · ${esc(p.country||'')}</span></div>`).join('');
  box.querySelectorAll('.suggestion').forEach((el,i)=>el._place=arr[i]);box.classList.remove('hidden');
 }
-async function resolvePlace(id){const input=$(id),q=input.value.trim(),existing=input.dataset.iata||'';if(existing&&/^[A-Z]{3}$/.test(existing))return ({'MPX':'MXP'}[existing]||existing);const shown=q.match(/^([A-Za-z]{3})\s*[—-]/);if(shown){const code=shown[1].toUpperCase();input.dataset.iata=code;return ({'MPX':'MXP'}[code]||code)}if(/^[A-Za-z]{3}$/.test(q)){input.dataset.iata=q.toUpperCase();return ({'MPX':'MXP'}[q.toUpperCase()]||q.toUpperCase())}const r=await fetch('/api/place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});const d=await r.json();if(!r.ok)throw Error(d.error||'Impossibile risolvere il luogo');const first=(d.places||[])[0];if(!first){input.dataset.iata='';return q}const code=first.iata||first.cityIata;if(!code){input.dataset.iata='';return q}input.dataset.iata=code;return code}
+async function resolvePlace(id){const input=$(id),q=input.value.trim(),existing=input.dataset.iata||'';if(existing&&/^[A-Z]{3}$/.test(existing))return ({'MPX':'MXP'}[existing]||existing);const shown=q.match(/^([A-Za-z]{3})\s*[—-]/);if(shown){const code=shown[1].toUpperCase();input.dataset.iata=code;return ({'MPX':'MXP'}[code]||code)}if(/^[A-Za-z]{3}$/.test(q)){input.dataset.iata=q.toUpperCase();return ({'MPX':'MXP'}[q.toUpperCase()]||q.toUpperCase())}const r=await fetch('/api/place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});const d=await r.json();if(!r.ok)throw Error(d.error||'Impossibile risolvere il luogo');const first=(d.places||[])[0]||localAirportSuggestions(q)[0];if(!first){input.dataset.iata='';return q}const code=first.iata||first.cityIata;if(!code){input.dataset.iata='';return q}input.dataset.iata=({'MPX':'MXP'}[String(code).toUpperCase()]||String(code).toUpperCase());return input.dataset.iata}
 function formBody(){return {origin:$('origin').dataset.iata||$('origin').value.trim(),destination:$('destination').dataset.iata||$('destination').value.trim(),departure_date:$('departure').value,return_date:$('return').value,passengers:$('pax').value,cabin:$('cabin').value,direct:$('direct').checked,currency:'EUR',market:'IT',locale:'it-IT'}}
 async function apiSearch(body){const r=await fetch('/api/search-flights',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'Ricerca fallita');return d}
 async function searchFlights(){
