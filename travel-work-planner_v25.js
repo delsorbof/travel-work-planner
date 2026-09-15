@@ -1315,7 +1315,7 @@ async function loadData(){
       updateHeader();
       renderGlobalFiles();
       renderPDFManifest();
-      setStatus(importedPending?'Risultato di ricerca integrato nel viaggio':'Nuovo modulo vuoto');
+      setStatus('Nuovo modulo vuoto');
       return false;
     }
     data=parsed&&typeof parsed==='object'?parsed:{sections:{},globalFiles:[]};
