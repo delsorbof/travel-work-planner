@@ -63,27 +63,57 @@ body{padding-top:0!important}
 <div class="card"><div class="muted"><b>Nota:</b> Skyscanner tramite Apify fornisce itinerari, prezzi, compagnie, scali, durate e segmenti. I prezzi sono indicativi e possono cambiare quando si passa al fornitore; i dati sui bagagli non sono garantiti dal feed e vanno verificati prima dell’acquisto.</div></div>
 </div><div id="busyOverlay" class="busy-overlay hidden" aria-live="assertive" aria-busy="true"><div class="busy-box"><div class="spinner"></div><div class="busy-title">Attendi, ricerca in corso…</div><div id="busyText" class="busy-text">Sto interrogando Skyscanner tramite Apify. Non cliccare nuovamente.</div></div></div><script>
 const $=id=>document.getElementById(id);
-const LOCAL_AIRPORTS=[
-['FCO','Roma Fiumicino','Roma','IT'],['CIA','Roma Ciampino','Roma','IT'],['MXP','Milano Malpensa','Milano','IT'],['LIN','Milano Linate','Milano','IT'],['BGY','Bergamo Orio al Serio','Bergamo','IT'],['NAP','Napoli Capodichino','Napoli','IT'],['VCE','Venezia Marco Polo','Venezia','IT'],['BLQ','Bologna Guglielmo Marconi','Bologna','IT'],['TRN','Torino Caselle','Torino','IT'],['FLR','Firenze Peretola','Firenze','IT'],['PSA','Pisa Galileo Galilei','Pisa','IT'],['GOA','Genova Cristoforo Colombo','Genova','IT'],['BRI','Bari Karol Wojtyla','Bari','IT'],['CTA','Catania Fontanarossa','Catania','IT'],['PMO','Palermo Falcone Borsellino','Palermo','IT'],['CAG','Cagliari Elmas','Cagliari','IT'],['LHR','London Heathrow','Londra','GB'],['LGW','London Gatwick','Londra','GB'],['CDG','Paris Charles de Gaulle','Parigi','FR'],['ORY','Paris Orly','Parigi','FR'],['MAD','Madrid Barajas','Madrid','ES'],['BCN','Barcelona El Prat','Barcellona','ES'],['AMS','Amsterdam Schiphol','Amsterdam','NL'],['FRA','Frankfurt','Francoforte','DE'],['MUC','Munich','Monaco','DE'],['VIE','Vienna','Vienna','AT'],['ZRH','Zurich','Zurigo','CH'],['BRU','Brussels','Bruxelles','BE'],['LIS','Lisbon','Lisbona','PT'],['ATH','Athens','Atene','GR'],['DUB','Dublin','Dublino','IE'],['IST','Istanbul','Istanbul','TR']
-].map(([iata,name,city,country])=>({iata,name,city,country,type:'airport'}));
-function localAirportSuggestions(q){
- const raw=(q||'').trim();
- const n=raw.toLocaleLowerCase('it').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
- if(!n) return [];
- const norm=v=>String(v||'').toLocaleLowerCase('it').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
- const code=raw.toUpperCase();
- // Prima la corrispondenza esatta di IATA.
- const exact=LOCAL_AIRPORTS.filter(p=>p.iata===code);
- if(exact.length) return exact;
- // Per nomi di città: mostra solo gli aeroporti della città richiesta.
- const cityMatches=LOCAL_AIRPORTS.filter(p=>norm(p.city)===n);
- if(cityMatches.length) return cityMatches.slice(0,6);
- // Poi nome aeroporto o codice che iniziano con la ricerca.
- const starts=LOCAL_AIRPORTS.filter(p=>norm(p.name).startsWith(n)||p.iata.toLowerCase().startsWith(n));
- if(starts.length) return starts.slice(0,6);
- // Infine una corrispondenza nel nome, sempre limitata.
- return LOCAL_AIRPORTS.filter(p=>norm(p.name).includes(n)).slice(0,6);
+const AIRPORT_CACHE_KEY='twp-airports-world-v1';
+const STATIC_AIRPORTS=[
+['FCO','Roma Fiumicino','Roma','IT'],['CIA','Roma Ciampino','Roma','IT'],['MXP','Milano Malpensa','Milano','IT'],['LIN','Milano Linate','Milano','IT'],['BGY','Bergamo Orio al Serio','Bergamo','IT'],['NAP','Napoli Capodichino','Napoli','IT'],['VCE','Venezia Marco Polo','Venezia','IT'],['BLQ','Bologna Guglielmo Marconi','Bologna','IT'],['TRN','Torino Caselle','Torino','IT'],['FLR','Firenze Peretola','Firenze','IT'],['PRG','Václav Havel Airport Prague','Praga','CZ'],['LHR','London Heathrow','Londra','GB'],['LGW','London Gatwick','Londra','GB'],['CDG','Paris Charles de Gaulle','Parigi','FR'],['ORY','Paris Orly','Parigi','FR'],['MAD','Madrid Barajas','Madrid','ES'],['BCN','Barcelona El Prat','Barcellona','ES'],['AMS','Amsterdam Schiphol','Amsterdam','NL'],['FRA','Frankfurt','Francoforte','DE'],['MUC','Munich','Monaco','DE'],['VIE','Vienna','Vienna','AT'],['ZRH','Zurich','Zurigo','CH'],['BRU','Brussels','Bruxelles','BE'],['LIS','Lisbon','Lisbona','PT'],['ATH','Athens','Atene','GR'],['DUB','Dublin','Dublino','IE'],['IST','Istanbul','Istanbul','TR']
+].map(([iata,name,city,country])=>({iata,name,city,country,type:'airport',keywords:''}));
+let AIRPORTS=[...STATIC_AIRPORTS];
+const foldAirport=v=>String(v||'').toLocaleLowerCase('it').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+function mergeAirportCatalog(rows){
+ const map=new Map();
+ for(const p of rows||[]) { if(!p||!p.iata) continue; const code=String(p.iata).toUpperCase(); if(!/^[A-Z]{3}$/.test(code)) continue; map.set(code,{...p,iata:code}); }
+ for(const p of STATIC_AIRPORTS) if(!map.has(p.iata)) map.set(p.iata,p);
+ AIRPORTS=[...map.values()];
 }
+function localAirportSuggestions(q){
+ const raw=(q||'').trim(), n=foldAirport(raw); if(!n)return [];
+ const code=raw.toUpperCase();
+ const exact=AIRPORTS.filter(p=>String(p.iata||'').toUpperCase()===code);
+ if(exact.length)return exact.slice(0,6);
+ const tokens=n.split(/\s+/).filter(Boolean);
+ const scored=[];
+ for(const p of AIRPORTS){
+   const city=foldAirport(p.city), name=foldAirport(p.name), keys=foldAirport(p.keywords||'');
+   let score=0;
+   if(city===n)score=1000;
+   else if(city.startsWith(n))score=850;
+   else if(name===n)score=800;
+   else if(name.startsWith(n))score=700;
+   else if(keys.split(',').some(k=>k.trim()===n))score=650;
+   else if(tokens.length>1 && tokens.every(t=>city.includes(t)||name.includes(t)||keys.includes(t)))score=600;
+   else if(city.includes(n))score=500;
+   else if(name.includes(n))score=400;
+   else if(keys.includes(n))score=300;
+   if(score) {
+     if(p.type==='large_airport')score+=30;
+     else if(p.type==='medium_airport')score+=15;
+     scored.push([score,p]);
+   }
+ }
+ scored.sort((a,b)=>b[0]-a[0] || String(a[1].iata).localeCompare(String(b[1].iata)));
+ return scored.slice(0,6).map(x=>x[1]);
+}
+async function loadWorldAirportCatalog(){
+ try{
+   const cached=localStorage.getItem(AIRPORT_CACHE_KEY);
+   if(cached){const c=JSON.parse(cached);if(Array.isArray(c.airports)&&c.airports.length)mergeAirportCatalog(c.airports);}
+ }catch(e){}
+ try{
+   const r=await fetch('/api/airport-catalog',{cache:'no-store'}); const d=await r.json();
+   if(d&&Array.isArray(d.airports)&&d.airports.length){mergeAirportCatalog(d.airports);try{localStorage.setItem(AIRPORT_CACHE_KEY,JSON.stringify({version:d.indexVersion,count:d.count,downloaded:d.downloaded,airports:d.airports}));}catch(e){}}
+ }catch(e){console.warn('Catalogo aeroporti mondiale non disponibile:',e)}
+}
+loadWorldAirportCatalog();
 
 let offers=[], selected=null, searchMode='outbound', outboundOffer=null, returnOffers=[], returnOffer=null, busy=false;
 function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
@@ -111,45 +141,20 @@ function setupPicker(id){
    const arr=localAirportSuggestions(q);
    if(input.value.trim()!==q)return;
    if(!arr.length){
-     box.innerHTML='<div class="suggestion"><span>Nessun aeroporto locale trovato. Puoi inserire direttamente un codice IATA (es. FCO).</span></div>';
+     box.innerHTML='<div class="suggestion"><span>Nessun aeroporto trovato. Puoi inserire direttamente un codice IATA (es. FCO).</span></div>';
    }else{
      box.innerHTML=arr.map((p,i)=>`<div class="suggestion" data-index="${i}" role="option"><b>${esc(p.iata||'')} — ${esc(p.name||'')}</b><span>${esc(p.city||'')} · ${esc(p.country||'')}</span></div>`).join('');
      box.querySelectorAll('.suggestion').forEach((el,i)=>el._place=arr[i]);
    }
    box.classList.remove('hidden');
  };
- input.addEventListener('input',()=>{
-   input.dataset.iata=''; clearTimeout(timer); hide();
-   const q=input.value.trim(); if(q.length<2)return;
-   // Nessuna chiamata al server: autocomplete locale e immediato.
-   show(q);
- });
+ input.addEventListener('input',()=>{clearTimeout(timer);input.dataset.iata='';const q=input.value.trim();hide();if(q.length<2)return;timer=setTimeout(()=>show(q),40)});
  input.addEventListener('focus',()=>{const q=input.value.trim();if(q.length>=2)show(q)});
  input.addEventListener('keydown',e=>{if(e.key==='Escape')hide()});
- box.addEventListener('pointerdown',e=>{
-   const el=e.target.closest('.suggestion'); if(!el||!el._place)return;
-   e.preventDefault(); const p=el._place;
-   const code=(p.iata||'').toUpperCase();
-   input.value=code ? `${code} — ${p.name||p.city||''}`.trim() : (p.name||p.city||input.value);
-   input.dataset.iata=code;
-   hide();
- });
+ box.addEventListener('pointerdown',e=>{const el=e.target.closest('.suggestion');if(!el)return;e.preventDefault();const p=el._place;if(p){const code=(p.iata||'').toUpperCase();input.value=code?`${code} — ${p.name||p.city||''}`:(p.name||p.city||input.value);input.dataset.iata=code}hide()});
  document.addEventListener('pointerdown',e=>{if(!box.contains(e.target)&&e.target!==input)hide()});
 }
 
-// Risolve sempre dal catalogo locale. Non interroga il server durante o dopo la digitazione.
-function resolvePlace(id){
- const input=$(id),q=input.value.trim(),existing=(input.dataset.iata||'').toUpperCase();
- if(existing&&/^[A-Z]{3}$/.test(existing))return ({'MPX':'MXP'}[existing]||existing);
- const shown=q.match(/^([A-Za-z]{3})\s*[—-]/);
- if(shown){const code=shown[1].toUpperCase();input.dataset.iata=({'MPX':'MXP'}[code]||code);return input.dataset.iata}
- if(/^[A-Za-z]{3}$/.test(q)){input.dataset.iata=({'MPX':'MXP'}[q.toUpperCase()]||q.toUpperCase());return input.dataset.iata}
- const first=localAirportSuggestions(q)[0];
- if(!first){input.dataset.iata='';return q}
- const code=(first.iata||'').toUpperCase();input.dataset.iata=({'MPX':'MXP'}[code]||code);return input.dataset.iata||q;
-}
-function formBody(){return {origin:$('origin').dataset.iata||$('origin').value.trim(),destination:$('destination').dataset.iata||$('destination').value.trim(),departure_date:$('departure').value,return_date:$('return').value,passengers:$('pax').value,cabin:$('cabin').value,direct:$('direct').checked,currency:'EUR',market:'IT',locale:'it-IT'}}
-async function apiSearch(body){const r=await fetch('/api/search-flights',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'Ricerca fallita');return d}
 async function searchFlights(){
  if(busy)return; setBusy(true,'Sto cercando i voli su Skyscanner tramite Apify…');
  selected=null;outboundOffer=null;returnOffer=null;returnOffers=[];searchMode='outbound';

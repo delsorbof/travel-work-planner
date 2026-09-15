@@ -1,4 +1,4 @@
-import json, os, re, webbrowser, hashlib, time, ssl, gzip, csv, io, unicodedata, difflib
+import json, os, re, webbrowser, hashlib, time, ssl, gzip, csv, io, unicodedata, difflib, threading
 from datetime import datetime
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, unquote, quote
@@ -56,7 +56,8 @@ PLANNER_DATA_FILE = DATA_DIR / 'planner-data.json'
 USB_SAVE_FILE = DATA_DIR / 'Travel_Work_Planner_Salvataggio.json'
 AIRPORT_INDEX_FILE = RUNTIME_DIR / 'airports-iata.json'
 AIRPORT_SOURCE_URL = 'https://davidmegginson.github.io/ourairports-data/airports.csv'
-AIRPORT_INDEX_VERSION = '25.0.47'
+AIRPORT_INDEX_VERSION = '26.0.0-world'
+AIRPORT_INDEX_MAX_AGE = 24 * 60 * 60
 
 
 def json_out(h, status, obj):
@@ -1040,50 +1041,100 @@ AIRPORT_METRO_ALIASES = {
 }
 
 def _airport_download_index():
+    """Download the current OurAirports CSV and build a compact flight-search index.
+    We keep only airports with IATA codes and scheduled airline service, which is
+    the useful subset for passenger flight searches. The source is public-domain
+    OurAirports data and is regenerated daily.
+    """
     RUNTIME_DIR.mkdir(exist_ok=True)
-    req=Request(AIRPORT_SOURCE_URL,headers={'Accept':'text/csv,*/*','User-Agent':'TravelWorkPlanner/25.0.41 airport index'},method='GET')
-    with urlopen(req,timeout=90) as r: raw=r.read()
+    req=Request(AIRPORT_SOURCE_URL,headers={'Accept':'text/csv,*/*','User-Agent':'TravelWorkPlanner/26 airport index'},method='GET')
+    with urlopen(req,timeout=120) as r:
+        raw=r.read()
     reader=csv.DictReader(io.StringIO(raw.decode('utf-8-sig',errors='replace')))
-    rows=[]
+    rows=[]; seen=set()
     for row in reader:
-        if str(row.get('scheduled_service') or '').strip().lower()!='yes': continue
-        if str(row.get('type') or '').strip() not in ('large_airport','medium_airport','small_airport'): continue
+        if str(row.get('scheduled_service') or '').strip().lower()!='yes':
+            continue
+        if str(row.get('type') or '').strip() not in ('large_airport','medium_airport','small_airport'):
+            continue
         iata=str(row.get('iata_code') or '').strip().upper()
-        # Canonicalize known legacy/incorrect codes before they reach the flight UI/provider.
         iata={'MPX':'MXP'}.get(iata,iata)
-        if not re.fullmatch(r'[A-Z]{3}',iata): continue
-        rows.append({'iata':iata,'name':str(row.get('name') or '').strip(),'city':str(row.get('municipality') or '').strip(),
-                     'country':str(row.get('iso_country') or '').strip().upper(),'keywords':str(row.get('keywords') or '').strip(),
-                     'type':str(row.get('type') or '').strip(),'lat':row.get('latitude_deg'),'lon':row.get('longitude_deg')})
+        if not re.fullmatch(r'[A-Z]{3}',iata) or iata in seen:
+            continue
+        seen.add(iata)
+        rows.append({
+            'iata':iata,
+            'name':str(row.get('name') or '').strip(),
+            'city':str(row.get('municipality') or '').strip(),
+            'country':str(row.get('iso_country') or '').strip().upper(),
+            'keywords':str(row.get('keywords') or '').strip(),
+            'type':str(row.get('type') or '').strip(),
+            'lat':row.get('latitude_deg'),
+            'lon':row.get('longitude_deg')
+        })
     tmp=AIRPORT_INDEX_FILE.with_suffix('.tmp')
-    tmp.write_text(json.dumps({'source':'OurAirports','index_version':AIRPORT_INDEX_VERSION,'downloaded':datetime.utcnow().isoformat()+'Z','airports':rows},ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+    tmp.write_text(json.dumps({'source':'OurAirports','index_version':AIRPORT_INDEX_VERSION,
+        'downloaded':datetime.utcnow().isoformat()+'Z','count':len(rows),'airports':rows},
+        ensure_ascii=False,separators=(',',':')),encoding='utf-8')
     tmp.replace(AIRPORT_INDEX_FILE)
+    print(f'Airport catalog updated: {len(rows)} airports')
     return rows
 
-def _load_airport_index():
-    rows = []
+_AIRPORT_UPDATE_LOCK=threading.Lock()
+_AIRPORT_UPDATE_RUNNING=False
+
+def _airport_catalog_rows_from_disk():
     try:
         if AIRPORT_INDEX_FILE.exists() and AIRPORT_INDEX_FILE.stat().st_size>1000:
             data=json.loads(AIRPORT_INDEX_FILE.read_text(encoding='utf-8'))
-            rows=data.get('airports') if isinstance(data,dict) else None
-            version=data.get('index_version') if isinstance(data,dict) else None
-            if version != AIRPORT_INDEX_VERSION:
-                rows = None
+            if isinstance(data,dict) and isinstance(data.get('airports'),list):
+                return data.get('airports'), data
     except Exception as e:
         print('Airport index read failed:',e)
-    if not isinstance(rows,list) or not rows:
+    return None, None
+
+def _airport_update_worker():
+    global _AIRPORT_UPDATE_RUNNING
+    if _AIRPORT_UPDATE_RUNNING:
+        return
+    with _AIRPORT_UPDATE_LOCK:
+        if _AIRPORT_UPDATE_RUNNING:
+            return
+        _AIRPORT_UPDATE_RUNNING=True
+    try:
+        _airport_download_index()
+    except Exception as e:
+        print('Airport catalog background update failed:',e)
+    finally:
+        _AIRPORT_UPDATE_RUNNING=False
+
+def _schedule_airport_update(force=False):
+    rows,meta=_airport_catalog_rows_from_disk()
+    stale=True
+    if rows and AIRPORT_INDEX_FILE.exists():
         try:
-            rows=_airport_download_index()
-        except Exception as e:
-            print('Airport index download failed; using built-in fallback:',e)
-            rows=[]
-    # Always merge the built-in catalog. Remote data remains useful for the long tail,
-    # while common airports stay available even if the remote dataset is incomplete.
+            stale=(time.time()-AIRPORT_INDEX_FILE.stat().st_mtime) > AIRPORT_INDEX_MAX_AGE
+        except Exception:
+            stale=True
+    if force or not rows or stale or (isinstance(meta,dict) and meta.get('index_version')!=AIRPORT_INDEX_VERSION):
+        threading.Thread(target=_airport_update_worker,daemon=True,name='airport-catalog-updater').start()
+
+def _load_airport_index():
+    rows,meta=_airport_catalog_rows_from_disk()
+    # Never block the flight autocomplete on a remote download. Use the last
+    # good catalog immediately and refresh it in the background when stale.
+    if not isinstance(rows,list) or not rows:
+        rows=_static_airport_rows()
+        _schedule_airport_update(force=True)
+        return rows
+    if not isinstance(meta,dict) or meta.get('index_version')!=AIRPORT_INDEX_VERSION:
+        _schedule_airport_update(force=True)
+    else:
+        _schedule_airport_update(force=False)
     by_code={str(r.get('iata') or '').upper():r for r in rows if isinstance(r,dict) and r.get('iata')}
     for r in _static_airport_rows():
         by_code.setdefault(r['iata'], r)
     return list(by_code.values())
-
 
 def _airport_query_variants(q):
     base=_fold_search_text(q); variants={base}
@@ -1440,6 +1491,17 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 status=int(getattr(e,'http_status',500) or 500)
                 return json_out(self, status, {'ok':False,'error':str(e)})
+        if route == '/api/airport-catalog':
+            rows,meta=_airport_catalog_rows_from_disk()
+            if not isinstance(rows,list) or not rows:
+                rows=_static_airport_rows()
+                ready=False
+            else:
+                ready=True
+            _schedule_airport_update(force=not ready)
+            payload={'ok':True,'ready':ready,'source':'OurAirports','indexVersion':(meta or {}).get('index_version',AIRPORT_INDEX_VERSION),
+                     'downloaded':(meta or {}).get('downloaded'),'count':len(rows),'airports':rows}
+            return json_out(self, 200, payload)
         if route == '/api/planner-data':
             # La fonte persistente per la ripresa tra sessioni è il file esplicito sulla USB.
             source = USB_SAVE_FILE if USB_SAVE_FILE.exists() else PLANNER_DATA_FILE
@@ -1494,6 +1556,7 @@ if __name__ == '__main__':
         except Exception as e:
             print('APIFY_ERROR=' + str(e))
             raise SystemExit(2)
+    _schedule_airport_update(force=False)
     server = ThreadingHTTPServer(('127.0.0.1', PORT), Handler)
     print(f'Travel Work Planner V22.7 USB Portable in ascolto su http://127.0.0.1:{PORT}/')
     print('Token Apify:', 'CONFIGURATO' if APIFY_TOKEN else 'NON CONFIGURATO')
