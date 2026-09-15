@@ -82,9 +82,51 @@ function renderList(arr,mode){
  h+='</tbody></table>';$('results').innerHTML=h;$('count').textContent=`${arr.length} risultati`;
 }
 function render(){renderList(offers,'outbound')}
-function setupPicker(id){const input=$(id),box=$(id+'Suggestions');let timer;input.addEventListener('input',()=>{input.dataset.iata='';clearTimeout(timer);const q=input.value.trim();if(q.length<2){box.classList.add('hidden');return}timer=setTimeout(()=>suggestPlaces(id,q),180)});input.addEventListener('focus',()=>{if(input.value.trim().length>=2)suggestPlaces(id,input.value.trim())});input.addEventListener('keydown',e=>{if(e.key==='Escape')box.classList.add('hidden')});box.addEventListener('pointerdown',e=>{const el=e.target.closest('.suggestion');if(!el)return;e.preventDefault();const p=el._place;if(p){input.value=p.iata||p.cityIata||input.value;input.dataset.iata=p.iata||p.cityIata||''}box.classList.add('hidden')});document.addEventListener('pointerdown',e=>{if(!box.contains(e.target)&&e.target!==input)box.classList.add('hidden')})}
-async function suggestPlaces(id,q){const box=$(id+'Suggestions');try{const r=await fetch('/api/place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});const d=await r.json();if(!r.ok)throw Error(d.error||'Suggerimenti non disponibili');const arr=(d.places||[]).slice(0,10);if(!arr.length){box.innerHTML='<div class="suggestion"><span>Nessuna corrispondenza locale. Puoi comunque inserire un codice IATA.</span></div>';box.classList.remove('hidden');return}box.innerHTML=arr.map((p,i)=>`<div class="suggestion" data-index="${i}" role="option"><b>${esc(p.iata||p.cityIata||'')} — ${esc(p.name||p.city||'')}</b><span>${esc(p.label||'')}</span></div>`).join('');box.querySelectorAll('.suggestion').forEach((el,i)=>el._place=arr[i]);box.classList.remove('hidden')}catch(e){console.warn(e);box.classList.add('hidden')}}
-async function resolvePlace(id){const input=$(id),q=input.value.trim(),existing=input.dataset.iata||'';if(existing&&/^[A-Z]{3}$/.test(existing))return existing;if(/^[A-Za-z]{3}$/.test(q)){input.dataset.iata=q.toUpperCase();return q.toUpperCase()}const r=await fetch('/api/place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});const d=await r.json();if(!r.ok)throw Error(d.error||'Impossibile risolvere il luogo');const first=(d.places||[])[0];if(!first){input.dataset.iata='';return q}const code=first.iata||first.cityIata;if(!code){input.dataset.iata='';return q}input.dataset.iata=code;return code}
+function setupPicker(id){
+ const input=$(id),box=$(id+'Suggestions'); let timer=null, seq=0, controller=null;
+ const hide=()=>box.classList.add('hidden');
+ const run=async(q)=>{
+   const mySeq=++seq;
+   if(controller) controller.abort();
+   controller=new AbortController();
+   try{await suggestPlaces(id,q,controller.signal,mySeq)}catch(e){if(e.name!=='AbortError')console.warn(e)}
+ };
+ input.addEventListener('input',()=>{
+   input.dataset.iata=''; clearTimeout(timer); hide();
+   const q=input.value.trim(); if(q.length<2)return;
+   timer=setTimeout(()=>run(q),220);
+ });
+ input.addEventListener('focus',()=>{
+   const q=input.value.trim(); if(q.length>=2)run(q);
+ });
+ input.addEventListener('keydown',e=>{if(e.key==='Escape')hide()});
+ box.addEventListener('pointerdown',e=>{
+   const el=e.target.closest('.suggestion'); if(!el)return;
+   e.preventDefault(); const p=el._place;
+   if(p){
+     const code=(p.iata||p.cityIata||'').toUpperCase();
+     input.value=code ? `${code} — ${p.name||p.city||''}`.trim() : (p.name||p.city||input.value);
+     input.dataset.iata=code;
+   }
+   hide();
+ });
+ document.addEventListener('pointerdown',e=>{
+   if(!box.contains(e.target)&&e.target!==input)hide();
+ });
+}
+
+async function suggestPlaces(id,q,signal,seq){
+ const input=$(id),box=$(id+'Suggestions');
+ const r=await fetch('/api/place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q}),signal});
+ const d=await r.json();
+ if(!r.ok)throw Error(d.error||'Suggerimenti non disponibili');
+ if(input.value.trim()!==q)return;
+ const arr=(d.places||[]).slice(0,10);
+ if(!arr.length){box.innerHTML='<div class="suggestion"><span>Nessuna corrispondenza locale. Puoi comunque inserire un codice IATA.</span></div>';box.classList.remove('hidden');return}
+ box.innerHTML=arr.map((p,i)=>`<div class="suggestion" data-index="${i}" role="option"><b>${esc(p.iata||p.cityIata||'')} — ${esc(p.name||p.city||'')}</b><span>${esc(p.city||'')} · ${esc(p.country||'')}</span></div>`).join('');
+ box.querySelectorAll('.suggestion').forEach((el,i)=>el._place=arr[i]);box.classList.remove('hidden');
+}
+async function resolvePlace(id){const input=$(id),q=input.value.trim(),existing=input.dataset.iata||'';if(existing&&/^[A-Z]{3}$/.test(existing))return ({'MPX':'MXP'}[existing]||existing);const shown=q.match(/^([A-Za-z]{3})\s*[—-]/);if(shown){const code=shown[1].toUpperCase();input.dataset.iata=code;return ({'MPX':'MXP'}[code]||code)}if(/^[A-Za-z]{3}$/.test(q)){input.dataset.iata=q.toUpperCase();return ({'MPX':'MXP'}[q.toUpperCase()]||q.toUpperCase())}const r=await fetch('/api/place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});const d=await r.json();if(!r.ok)throw Error(d.error||'Impossibile risolvere il luogo');const first=(d.places||[])[0];if(!first){input.dataset.iata='';return q}const code=first.iata||first.cityIata;if(!code){input.dataset.iata='';return q}input.dataset.iata=code;return code}
 function formBody(){return {origin:$('origin').dataset.iata||$('origin').value.trim(),destination:$('destination').dataset.iata||$('destination').value.trim(),departure_date:$('departure').value,return_date:$('return').value,passengers:$('pax').value,cabin:$('cabin').value,direct:$('direct').checked,currency:'EUR',market:'IT',locale:'it-IT'}}
 async function apiSearch(body){const r=await fetch('/api/search-flights',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'Ricerca fallita');return d}
 async function searchFlights(){

@@ -56,7 +56,7 @@ PLANNER_DATA_FILE = DATA_DIR / 'planner-data.json'
 USB_SAVE_FILE = DATA_DIR / 'Travel_Work_Planner_Salvataggio.json'
 AIRPORT_INDEX_FILE = RUNTIME_DIR / 'airports-iata.json'
 AIRPORT_SOURCE_URL = 'https://davidmegginson.github.io/ourairports-data/airports.csv'
-AIRPORT_INDEX_VERSION = '25.0.46'
+AIRPORT_INDEX_VERSION = '25.0.47'
 
 
 def json_out(h, status, obj):
@@ -1007,7 +1007,10 @@ AIRPORT_METRO_ALIASES = {
     'rome':['rome','roma'],'roma':['rome','roma'],'london':['london','londra'],
     'londra':['london','londra'],'paris':['paris','parigi'],'parigi':['paris','parigi'],
     'berlin':['berlin','berlino'],'berlino':['berlin','berlino'],'brussels':['brussels','bruxelles'],
-    'bruxelles':['brussels','bruxelles'],'vienna':['vienna','wien'],'wien':['vienna','wien']
+    'bruxelles':['brussels','bruxelles'],'vienna':['vienna','wien'],'wien':['vienna','wien'],
+    'milan':['milan','milano','bergamo','malpensa','linate'],'milano':['milan','milano','bergamo','malpensa','linate'],
+    'rome':['rome','roma','fiumicino','ciampino'],'roma':['rome','roma','fiumicino','ciampino'],
+    'naples':['naples','napoli','capodichino'],'napoli':['naples','napoli','capodichino']
 }
 
 def _airport_download_index():
@@ -1020,6 +1023,8 @@ def _airport_download_index():
         if str(row.get('scheduled_service') or '').strip().lower()!='yes': continue
         if str(row.get('type') or '').strip() not in ('large_airport','medium_airport','small_airport'): continue
         iata=str(row.get('iata_code') or '').strip().upper()
+        # Canonicalize known legacy/incorrect codes before they reach the flight UI/provider.
+        iata={'MPX':'MXP'}.get(iata,iata)
         if not re.fullmatch(r'[A-Z]{3}',iata): continue
         rows.append({'iata':iata,'name':str(row.get('name') or '').strip(),'city':str(row.get('municipality') or '').strip(),
                      'country':str(row.get('iso_country') or '').strip().upper(),'keywords':str(row.get('keywords') or '').strip(),
