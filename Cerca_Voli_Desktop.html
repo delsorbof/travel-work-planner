@@ -87,6 +87,10 @@ const CITY_SEARCH_ALIASES={
   barcellona:['barcellona','barcelona'],barcelona:['barcelona','barcellona'],lisbona:['lisbona','lisbon'],lisbon:['lisbon','lisbona'],
   atene:['atene','athens'],athens:['athens','atene'],bruxelles:['bruxelles','brussels'],brussels:['brussels','bruxelles'],
   zurigo:['zurigo','zurich'],zurich:['zurich','zurigo'],
+  newyork:['new york','newyork','nyc'],newyorkcity:['new york','newyork','nyc'],nyc:['new york','newyork','nyc'],
+  boston:['boston'],chicago:['chicago'],losangeles:['los angeles','losangeles','la'],sanfrancisco:['san francisco','sanfrancisco','sf'],
+  washington:['washington','washington dc','washington d.c.'],miami:['miami'],atlanta:['atlanta'],dallas:['dallas'],houston:['houston'],
+  seattle:['seattle'],denver:['denver'],philadelphia:['philadelphia'],toronto:['toronto'],montreal:['montreal'],vancouver:['vancouver'],
 };
 const METRO_CITY_ALIASES={
   milano:['milano','milan','bergamo'],milan:['milano','milan','bergamo'],
@@ -95,29 +99,45 @@ const METRO_CITY_ALIASES={
 };
 function airportSearchAliases(n){
  const direct=CITY_SEARCH_ALIASES[n];
- return direct ? [...new Set(direct)] : [n];
+ return direct ? [...new Set(direct.map(foldAirport).filter(Boolean).concat([n]))] : [n];
 }
 function airportRank(p){return p.type==='large_airport'?30:p.type==='medium_airport'?15:0;}
+function airportEditDistance(a,b){
+ const m=a.length,n=b.length;if(!m)return n;if(!n)return m;
+ let prev=Array.from({length:n+1},(_,i)=>i),cur=new Array(n+1);
+ for(let i=1;i<=m;i++){cur[0]=i;for(let j=1;j<=n;j++)cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));[prev,cur]=[cur,prev];}
+ return prev[n];
+}
+function airportCityMatchScore(city,n,aliases){
+ if(aliases.includes(city))return 1000;
+ if(aliases.some(a=>city.startsWith(a)||a.startsWith(city)))return 920;
+ const d=airportEditDistance(city,n);
+ const maxLen=Math.max(city.length,n.length);
+ if(maxLen>=5 && d<=Math.max(1,Math.floor(maxLen*0.15)))return 760-d*20;
+ return 0;
+}
 function localAirportSuggestions(q){
  const raw=(q||'').trim(), n=foldAirport(raw); if(!n)return [];
  const code=raw.toUpperCase();
  const exact=AIRPORTS.filter(p=>String(p.iata||'').toUpperCase()===code);
  if(exact.length)return exact.slice(0,6);
  const aliases=airportSearchAliases(n);
- const metro=METRO_CITY_ALIASES[n]||[];
+ const metro=(METRO_CITY_ALIASES[n]||[]).map(foldAirport).filter(Boolean);
  // 1) City lock: if the query identifies a city, never mix in airports from
  // unrelated cities merely because their keywords happen to contain the text.
- const cityMatches=AIRPORTS.filter(p=>{
+ const cityScored=AIRPORTS.map(p=>{
    const city=foldAirport(p.city);
-   return aliases.includes(city) || metro.includes(city);
- });
+   return [Math.max(airportCityMatchScore(city,n,aliases), metro.includes(city)?1000:0),p];
+ }).filter(x=>x[0]>0);
+ const bestCityScore=cityScored.length?Math.max(...cityScored.map(x=>x[0])):0;
+ const cityMatches=cityScored.filter(x=>x[0]===bestCityScore).map(x=>x[1]);
  if(cityMatches.length){
    return cityMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
  }
  // 2) Airport name. Still no generic keyword substring matching.
  const nameMatches=AIRPORTS.filter(p=>{
    const name=foldAirport(p.name);
-   return aliases.some(a=>name===a||name.startsWith(a+' ')||name.includes(' '+a+' '));
+   return aliases.some(a=>name===a||name.startsWith(a)||name.includes(' '+a+' '));
  });
  if(nameMatches.length){
    return nameMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);

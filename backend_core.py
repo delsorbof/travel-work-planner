@@ -998,7 +998,11 @@ AIRPORT_CITY_ALIASES = {
     'napoli':['naples'],'florence':['firenze'],'firenze':['florence'],'venice':['venezia'],
     'venezia':['venice'],'turin':['torino'],'torino':['turin'],'genoa':['genova'],'genova':['genoa'],
     'london':['londra'],'londra':['london'],'paris':['parigi'],'parigi':['paris'],
-    'berlin':['berlino'],'berlino':['berlin']
+    'berlin':['berlino'],'berlino':['berlin'],
+    'newyork':['new york','newyork','nyc'],'newyorkcity':['new york','newyork','nyc'],'nyc':['new york','newyork','nyc'],
+    'boston':['boston'],'chicago':['chicago'],'losangeles':['los angeles','losangeles','la'],'sanfrancisco':['san francisco','sanfrancisco','sf'],
+    'washington':['washington','washington dc','washington d.c.'],'miami':['miami'],'atlanta':['atlanta'],'dallas':['dallas'],'houston':['houston'],
+    'seattle':['seattle'],'denver':['denver'],'philadelphia':['philadelphia'],'toronto':['toronto'],'montreal':['montreal'],'vancouver':['vancouver']
 }
 
 # Airports that commonly serve a metropolitan city even when the municipality
@@ -1011,6 +1015,13 @@ STATIC_AIRPORTS = [
     ('NAP','Napoli Capodichino','Naples','IT','large_airport'), ('VCE','Venezia Marco Polo','Venice','IT','large_airport'),
     ('BLQ','Bologna Guglielmo Marconi','Bologna','IT','large_airport'), ('TRN','Torino Caselle','Turin','IT','large_airport'),
     ('FLR','Firenze Peretola','Florence','IT','medium_airport'), ('PSA','Pisa Galileo Galilei','Pisa','IT','large_airport'),
+    ('JFK','John F. Kennedy International Airport','New York','US','large_airport'), ('LGA','LaGuardia Airport','New York','US','large_airport'), ('EWR','Newark Liberty International Airport','Newark','US','large_airport'),
+    ('BOS','Boston Logan International Airport','Boston','US','large_airport'), ('ORD','O\'Hare International Airport','Chicago','US','large_airport'), ('MDW','Midway International Airport','Chicago','US','large_airport'),
+    ('LAX','Los Angeles International Airport','Los Angeles','US','large_airport'), ('SFO','San Francisco International Airport','San Francisco','US','large_airport'),
+    ('IAD','Washington Dulles International Airport','Washington','US','large_airport'), ('DCA','Ronald Reagan Washington National Airport','Washington','US','large_airport'),
+    ('MIA','Miami International Airport','Miami','US','large_airport'), ('ATL','Hartsfield Jackson Atlanta International Airport','Atlanta','US','large_airport'),
+    ('DFW','Dallas Fort Worth International Airport','Dallas','US','large_airport'), ('IAH','George Bush Intercontinental Airport','Houston','US','large_airport'),
+    ('SEA','Seattle Tacoma International Airport','Seattle','US','large_airport'), ('DEN','Denver International Airport','Denver','US','large_airport'), ('PHL','Philadelphia International Airport','Philadelphia','US','large_airport'),
     ('GOA','Genova Cristoforo Colombo','Genoa','IT','medium_airport'), ('BRI','Bari Karol Wojtyla','Bari','IT','large_airport'),
     ('CTA','Catania Fontanarossa','Catania','IT','large_airport'), ('PMO','Palermo Falcone Borsellino','Palermo','IT','large_airport'),
     ('CAG','Cagliari Elmas','Cagliari','IT','large_airport'), ('OLB','Olbia Costa Smeralda','Olbia','IT','large_airport'),
@@ -1140,7 +1151,7 @@ def _airport_query_variants(q):
     base=_fold_search_text(q); variants={base}
     for key,vals in AIRPORT_CITY_ALIASES.items():
         k=_fold_search_text(key)
-        if base==k or k.startswith(base):
+        if base==k or k.startswith(base) or base.startswith(k):
             variants.add(k); variants.update(_fold_search_text(v) for v in vals)
     variants.update(_fold_search_text(v) for v in AIRPORT_METRO_ALIASES.get(base,[]))
     return {v for v in variants if v}
@@ -1152,9 +1163,9 @@ def _airport_score(variants,row):
     for v in variants:
         if not v: continue
         if city==v: best=max(best,145)
-        elif city.startswith(v+' '): best=max(best,125)
+        elif city.startswith(v) or v.startswith(city): best=max(best,128)
         elif name==v: best=max(best,120)
-        elif name.startswith(v+' '): best=max(best,105)
+        elif name.startswith(v) or v.startswith(name): best=max(best,108)
         elif v in city: best=max(best,95)
         elif v in name: best=max(best,80)
         else:
@@ -1184,6 +1195,22 @@ def airport_place_suggestions(query):
 
     qfold=_fold_search_text(q)
     city_rows=_airport_city_candidates(rows,qfold)
+    if not city_rows:
+        # Typo-tolerant city lock (e.g. 'new yourk' -> 'New York').
+        city_scores=[]
+        aliases=set(AIRPORT_CITY_ALIASES.get(qfold, [])) | {qfold}
+        metro=set(AIRPORT_METRO_ALIASES.get(qfold, []))
+        for row in rows:
+            city=_fold_search_text(row.get('city'))
+            if not city: continue
+            if city in aliases or city in metro:
+                city_scores.append((1000,row)); continue
+            d=difflib.SequenceMatcher(None,qfold,city).ratio()
+            if len(qfold)>=5 and d>=0.84:
+                city_scores.append((d,row))
+        if city_scores:
+            best=max(x[0] for x in city_scores)
+            city_rows=[r for score,r in city_scores if score>=best-0.01]
     if city_rows:
         city_rows.sort(key=lambda r:(r.get('type')!='large_airport',r.get('type')!='medium_airport',r.get('iata','')))
         scored=[(150 if _fold_search_text(r.get('city'))==qfold else 135,r) for r in city_rows]
