@@ -1,8 +1,6 @@
 const DB_NAME='TravelWorkPlannerDB_v13', STORE='files', DATA_KEY='travelWorkPlannerData_v13';
 const SESSION_DATA_KEY='TravelWorkPlanner_Session_v25';
 const USB_SAVE_FILE='DATA/Travel_Work_Planner_Salvataggio.json';
-const TRIPS_KEY='travelWorkPlannerTrips_v1';
-let tripArchive=null, activeTripId=null;
 let db, data = {sections:{}, globalFiles:[]};
 // API pubblica per le pagine collegate (es. Travel Report): restituisce sempre
 // l'oggetto dati corrente del Planner, non una copia inizializzata troppo presto.
@@ -29,116 +27,6 @@ function loadSessionState(){
 }
 function clearPersistentBrowserPlanner(){
   try{ localStorage.removeItem(DATA_KEY); localStorage.removeItem(TRIPS_KEY); }catch(e){}
-}
-function newTripId(){
-  return (window.crypto&&typeof crypto.randomUUID==='function') ? crypto.randomUUID() : ('trip_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));
-}
-function blankTrip(){
-  const sections={};
-  Object.keys(configs).forEach(id=>sections[id]=[]);
-  return {title:'',startDate:'',endDate:'',notes:'',sections,globalFiles:[]};
-}
-function normalizeArchive(obj){
-  if(obj && typeof obj==='object' && obj.trips && typeof obj.trips==='object'){
-    const trips={};
-    for(const [id,trip] of Object.entries(obj.trips)){
-      if(!trip || typeof trip!=='object') continue;
-      const t={...blankTrip(),...trip};
-      t.sections=t.sections&&typeof t.sections==='object'?t.sections:{};
-      Object.keys(configs).forEach(k=>{t.sections[k]=Array.isArray(t.sections[k])?t.sections[k]:[];});
-      trips[id]=t;
-    }
-    let active=obj.activeTripId;
-    if(!active || !trips[active]) active=Object.keys(trips)[0]||null;
-    if(!active){active=newTripId();trips[active]=blankTrip();}
-    return {version:1,activeTripId:active,trips};
-  }
-  if(obj && typeof obj==='object' && obj.sections){
-    const id=newTripId();
-    return {version:1,activeTripId:id,trips:{[id]:{...blankTrip(),...obj,sections:obj.sections}}};
-  }
-  return null;
-}
-function ensureArchiveFrom(obj){
-  tripArchive=normalizeArchive(obj);
-  if(!tripArchive){
-    const id=newTripId();
-    tripArchive={version:1,activeTripId:id,trips:{[id]:blankTrip()}};
-  }
-  activeTripId=tripArchive.activeTripId;
-  data=tripArchive.trips[activeTripId]||blankTrip();
-  tripArchive.trips[activeTripId]=data;
-  return tripArchive;
-}
-function persistArchiveLocal(){
-  try{localStorage.setItem(TRIPS_KEY,JSON.stringify(tripArchive));}catch(e){console.warn('Archivio viaggi locale non salvato:',e)}
-}
-function loadArchiveLocal(){
-  try{const raw=localStorage.getItem(TRIPS_KEY);return raw?normalizeArchive(JSON.parse(raw)):null;}catch(e){return null;}
-}
-function tripDisplayName(id,trip){
-  const title=String(trip?.title||'').trim();
-  if(title)return title;
-  const n=Object.keys(tripArchive?.trips||{}).indexOf(id)+1;
-  return `Viaggio ${n>0?n:1}`;
-}
-function refreshTripSelector(){
-  const sel=document.getElementById('tripSelector'); if(!sel || !tripArchive)return;
-  sel.innerHTML=Object.entries(tripArchive.trips).map(([id,t])=>`<option value="${esc(id)}">${esc(tripDisplayName(id,t))}</option>`).join('');
-  if(activeTripId) sel.value=activeTripId;
-  const del=document.getElementById('deleteTripBtn'); if(del) del.disabled=Object.keys(tripArchive.trips).length<=1;
-}
-function renderCurrentTrip(){
-  if(!data)data=blankTrip();
-  Object.keys(configs).forEach(id=>{data.sections[id]=Array.isArray(data.sections[id])?data.sections[id]:[];renderRows(id);});
-  const title=document.getElementById('title'),start=document.getElementById('startDate'),end=document.getElementById('endDate');
-  if(title) title.value=data.title||'';
-  if(start) start.value=data.startDate||'';
-  if(end) end.value=data.endDate||'';
-  updateHeader();
-  renderGlobalFiles(); renderPDFManifest(); refreshTripSelector();
-}
-async function createTrip(){
-  try{
-    collect();
-    if(tripArchive && activeTripId) tripArchive.trips[activeTripId]=data;
-    const id=newTripId();
-    tripArchive=tripArchive||{version:1,activeTripId:id,trips:{}};
-    tripArchive.trips[id]=blankTrip();
-    tripArchive.activeTripId=id; activeTripId=id; data=tripArchive.trips[id];
-    persistArchiveLocal(); renderCurrentTrip();
-    await saveData(false);
-    setStatus(`Nuovo viaggio creato · ${Object.keys(tripArchive.trips).length} viaggio/i`);
-  }catch(e){console.error('Creazione viaggio fallita:',e);setStatus('Creazione viaggio non riuscita');}
-}
-async function switchTrip(id){
-  if(!tripArchive?.trips?.[id] || id===activeTripId)return;
-  try{
-    collect();
-    tripArchive.trips[activeTripId]=data;
-    persistArchiveLocal();
-    activeTripId=id; tripArchive.activeTripId=id; data=tripArchive.trips[id];
-    renderCurrentTrip();
-    await saveData(false);
-    setStatus(`Viaggio selezionato: ${tripDisplayName(id,data)}`);
-  }catch(e){console.error('Cambio viaggio fallito:',e);setStatus('Cambio viaggio non riuscito');}
-}
-async function deleteCurrentTrip(){
-  if(!tripArchive?.trips?.[activeTripId])return;
-  const ids=Object.keys(tripArchive.trips);
-  if(ids.length<=1){setStatus('Deve rimanere almeno un viaggio');return;}
-  const name=tripDisplayName(activeTripId,data);
-  if(!confirm(`Eliminare definitivamente "${name}"?\n\nSaranno rimossi anche i suoi allegati.`))return;
-  try{
-    const files=await getFiles(x=>x.tripId===activeTripId);
-    for(const f of files) await deleteStoredFile(f.id);
-    delete tripArchive.trips[activeTripId];
-    activeTripId=Object.keys(tripArchive.trips)[0];
-    tripArchive.activeTripId=activeTripId; data=tripArchive.trips[activeTripId];
-    persistArchiveLocal(); renderCurrentTrip();
-    await saveData(false);
-    setStatus('Viaggio eliminato');
-  }catch(e){console.error('Eliminazione viaggio fallita:',e);setStatus('Eliminazione viaggio non riuscita');}
 }
 // Archivio principale portabile nel cloud: il file viene sovrascritto a ogni SALVA.
 // planner-data.json resta come compatibilità tecnica/API; il file nominato è quello da conservare tra sessioni.
@@ -1468,11 +1356,8 @@ window.twpReady=(async function(){
    const hadSession=loadSessionState();
    if(hadSession){ Object.keys(configs).forEach(id=>renderRows(id)); document.getElementById('title').value=data.title||''; document.getElementById('startDate').value=data.startDate||''; document.getElementById('endDate').value=data.endDate||''; updateHeader(); renderGlobalFiles(); renderPDFManifest(); }
    else { updateHeader(); renderPDFManifest(); }
-   // Al primo caricamento della pagina il cloud deve essere la fonte persistente.
-   // La sessione serve solo per i passaggi tra le varie pagine dell'app.
-   await loadData();
    const importedOnEntry=await importSearchQueueOnEntry();
-   if(!importedOnEntry && !tripArchive)setStatus('Pronto — planner vuoto');
+   if(!importedOnEntry)setStatus('Pronto — planner vuoto');
    data._ready=true;
    window.dispatchEvent(new CustomEvent('twp-data-ready'));
  }catch(err){
@@ -1482,11 +1367,8 @@ window.twpReady=(async function(){
    const hadSession=loadSessionState();
    if(hadSession){ Object.keys(configs).forEach(id=>renderRows(id)); document.getElementById('title').value=data.title||''; document.getElementById('startDate').value=data.startDate||''; document.getElementById('endDate').value=data.endDate||''; updateHeader(); renderGlobalFiles(); renderPDFManifest(); }
    else { updateHeader(); renderGlobalFiles(); renderPDFManifest(); }
-   // Al primo caricamento della pagina il cloud deve essere la fonte persistente.
-   // La sessione serve solo per i passaggi tra le varie pagine dell'app.
-   await loadData();
    const importedOnEntry=await importSearchQueueOnEntry();
-   if(!importedOnEntry && !tripArchive)setStatus('Pronto — planner vuoto');
+   if(!importedOnEntry)setStatus('Pronto — planner vuoto');
    data._ready=true;
    window.dispatchEvent(new CustomEvent('twp-data-ready'));
  }

@@ -164,7 +164,7 @@ def save_cloud(payload, attachments):
         except Exception: continue
         sb_upload(path, raw, item.get('mimeType') or 'application/pdf')
         wanted.append(path)
-        manifest.append({k:item.get(k) for k in ['id','section','row','rowId','name','size','mimeType']} | {"storagePath":path})
+        manifest.append({k:item.get(k) for k in ['id','tripId','section','row','rowId','name','size','mimeType']} | {"storagePath":path})
     old_paths=[x.get('storagePath') for x in old_manifest if isinstance(x,dict) and x.get('storagePath')]
     stale=[p for p in old_paths if p not in wanted]
     sb_remove(stale)
@@ -173,6 +173,9 @@ def save_cloud(payload, attachments):
 
 
 def load_cloud():
+    # Cleanup is also triggered on every Planner load, so expired trips are
+    # removed even if the periodic worker was asleep between visits.
+    cleanup_expired_trips()
     if not SUPABASE_URL or not SUPABASE_KEY:
         p=ROOT/"DATA"/"planner-data.json"
         if not p.exists(): return {"ok":True,"data":None,"attachments":[]}
