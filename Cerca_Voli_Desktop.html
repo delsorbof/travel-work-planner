@@ -63,106 +63,105 @@ body{padding-top:0!important}
 <div class="card"><div class="muted"><b>Nota:</b> Skyscanner tramite Apify fornisce itinerari, prezzi, compagnie, scali, durate e segmenti. I prezzi sono indicativi e possono cambiare quando si passa al fornitore; i dati sui bagagli non sono garantiti dal feed e vanno verificati prima dell’acquisto.</div></div>
 </div><div id="busyOverlay" class="busy-overlay hidden" aria-live="assertive" aria-busy="true"><div class="busy-box"><div class="spinner"></div><div class="busy-title">Attendi, ricerca in corso…</div><div id="busyText" class="busy-text">Sto interrogando Skyscanner tramite Apify. Non cliccare nuovamente.</div></div></div><script>
 const $=id=>document.getElementById(id);
-const LOCAL_AIRPORTS=[
-['FCO','Roma Fiumicino','Roma','IT'],['CIA','Roma Ciampino','Roma','IT'],['MXP','Milano Malpensa','Milano','IT'],['LIN','Milano Linate','Milano','IT'],['BGY','Bergamo Orio al Serio','Bergamo','IT'],['NAP','Napoli Capodichino','Napoli','IT'],['VCE','Venezia Marco Polo','Venezia','IT'],['BLQ','Bologna Guglielmo Marconi','Bologna','IT'],['TRN','Torino Caselle','Torino','IT'],['FLR','Firenze Peretola','Firenze','IT'],['PSA','Pisa Galileo Galilei','Pisa','IT'],['GOA','Genova Cristoforo Colombo','Genova','IT'],['BRI','Bari Karol Wojtyla','Bari','IT'],['CTA','Catania Fontanarossa','Catania','IT'],['PMO','Palermo Falcone Borsellino','Palermo','IT'],['CAG','Cagliari Elmas','Cagliari','IT'],['LHR','London Heathrow','Londra','GB'],['LGW','London Gatwick','Londra','GB'],['CDG','Paris Charles de Gaulle','Parigi','FR'],['ORY','Paris Orly','Parigi','FR'],['MAD','Madrid Barajas','Madrid','ES'],['BCN','Barcelona El Prat','Barcellona','ES'],['AMS','Amsterdam Schiphol','Amsterdam','NL'],['FRA','Frankfurt','Francoforte','DE'],['MUC','Munich','Monaco','DE'],['VIE','Vienna','Vienna','AT'],['ZRH','Zurich','Zurigo','CH'],['BRU','Brussels','Bruxelles','BE'],['LIS','Lisbon','Lisbona','PT'],['ATH','Athens','Atene','GR'],['DUB','Dublin','Dublino','IE'],['IST','Istanbul','Istanbul','TR'],['SYD','Sydney Kingsford Smith','Sydney','AU'],['MEL','Melbourne','Melbourne','AU'],['BNE','Brisbane','Brisbane','AU'],['PER','Perth','Perth','AU'],['NRT','Tokyo Narita','Tokyo','JP'],['HND','Tokyo Haneda','Tokyo','JP'],['KIX','Osaka Kansai','Osaka','JP'],['PEK','Beijing Capital','Beijing','CN'],['PKX','Beijing Daxing','Beijing','CN'],['PVG','Shanghai Pudong','Shanghai','CN'],['DEL','Delhi Indira Gandhi','Delhi','IN'],['BOM','Mumbai Chhatrapati Shivaji','Mumbai','IN'],['SIN','Singapore Changi','Singapore','SG'],['HKG','Hong Kong','Hong Kong','HK'],['ICN','Seoul Incheon','Seoul','KR'],['DXB','Dubai','Dubai','AE'],['YUL','Montreal Trudeau','Montreal','CA'],['YMX','Montreal Mirabel','Montreal','CA'],['KTW','Katowice Wojciech Korfanty','Katowice','PL'],['WAW','Warsaw Chopin','Warsaw','PL'],['KRK','Krakow John Paul II','Krakow','PL']
-].map(([iata,name,city,country])=>({iata,name,city,country,type:'large_airport',keywords:''}));
-const AIRPORT_CACHE_KEY='twp-airports-world-v3';
-let WORLD_AIRPORTS=[];
-let WORLD_CATALOG_READY=false;
-const normAirport=v=>String(v||'').toLocaleLowerCase('it').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
-const CITY_SEARCH_ALIASES={
- praga:['praga','prague','praha'],prague:['praga','prague','praha'],praha:['praga','prague','praha'],
- roma:['roma','rome'],rome:['roma','rome'],milano:['milano','milan'],milan:['milano','milan'],
- napoli:['napoli','naples'],naples:['napoli','naples'],venezia:['venezia','venice'],venice:['venezia','venice'],
- firenze:['firenze','florence'],florence:['firenze','florence'],torino:['torino','turin'],turin:['torino','turin'],
- genova:['genova','genoa'],genoa:['genova','genoa'],parigi:['parigi','paris'],paris:['parigi','paris'],
- londra:['londra','london'],london:['londra','london'],vienna:['vienna','wien'],wien:['vienna','wien'],
- monaco:['monaco','munich','munchen','muenchen'],munich:['munich','monaco','munchen','muenchen'],
- francoforte:['francoforte','frankfurt'],frankfurt:['frankfurt','francoforte'],barcellona:['barcellona','barcelona'],barcelona:['barcelona','barcellona'],
- lisbona:['lisbona','lisbon','lisboa'],lisbon:['lisbon','lisbona','lisboa'],atene:['atene','athens','athina'],athens:['athens','atene','athina'],
- bruxelles:['bruxelles','brussels','brussel'],brussels:['brussels','bruxelles','brussel'],zurigo:['zurigo','zurich','zuerich'],zurich:['zurich','zurigo','zuerich'],
- copenaghen:['copenaghen','copenhagen','kobenhavn'],copenhagen:['copenhagen','copenaghen','kobenhavn'],stoccolma:['stoccolma','stockholm'],stockholm:['stockholm','stoccolma'],
- newyork:['new york','newyork','nyc'],newyorkcity:['new york','newyork','nyc'],nyc:['new york','newyork','nyc'],
- boston:['boston'],chicago:['chicago'],losangeles:['los angeles','losangeles'],sanfrancisco:['san francisco','sanfrancisco'],
- washington:['washington','washington dc','washington d c'],miami:['miami'],atlanta:['atlanta'],dallas:['dallas'],houston:['houston'],seattle:['seattle'],denver:['denver'],philadelphia:['philadelphia'],
- toronto:['toronto'],montreal:['montreal','montreal','montreal city'],vancouver:['vancouver'],katowice:['katowice','katowice city','pyrzowice'],warsaw:['warsaw','warszawa'],krakow:['krakow','kraków'],mexicocity:['mexico city','mexicocity','ciudad de mexico'],
- tokyo:['tokyo'],osaka:['osaka'],kyoto:['kyoto'],beijing:['beijing','pechino'],pechino:['pechino','beijing'],shanghai:['shanghai'],
- hongkong:['hong kong','hongkong'],singapore:['singapore'],seoul:['seoul'],bangkok:['bangkok'],delhi:['delhi','new delhi'],newdelhi:['new delhi','delhi'],mumbai:['mumbai','bombay'],bombay:['bombay','mumbai'],
- sydney:['sydney'],melbourne:['melbourne'],brisbane:['brisbane'],perth:['perth'],auckland:['auckland'],
- 'sao paulo':['sao paulo','sao paulo'],saopaulo:['sao paulo','saopaulo'],rio:['rio de janeiro','rio'],riodejaneiro:['rio de janeiro','rio'],
- dubai:['dubai'],'abu dhabi':['abu dhabi','abudhabi'],doha:['doha'],cairo:['cairo'],johannesburg:['johannesburg'],'cape town':['cape town'],capetown:['cape town']
-};
-const METRO_CITY_GROUPS={
- newyork:['new york','queens','newark'],newyorkcity:['new york','queens','newark'],nyc:['new york','queens','newark'],
- london:['london','crawley'],londra:['london','crawley'],
- paris:['paris','orly','roissy-en-france'],parigi:['paris','orly','roissy-en-france'],
- milan:['milan','milano','bergamo','ferno','segrate','orio al serio'],milano:['milan','milano','bergamo','ferno','segrate','orio al serio'],
- rome:['rome','roma','fiumicino'],roma:['rome','roma','fiumicino'],
- tokyo:['tokyo'],osaka:['osaka'],seoul:['seoul'],beijing:['beijing'],shanghai:['shanghai'],
- washington:['washington','dulles','arlington'],mexicocity:['mexico city','mexicocity']
-};
-function airportAliases(n){return [...new Set((CITY_SEARCH_ALIASES[n]||[n]).map(normAirport).filter(Boolean).concat([n]))]}
-function editDistance(a,b){const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let p=Array.from({length:n+1},(_,i)=>i),c=[];for(let i=1;i<=m;i++){c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(c[j-1]+1,p[j]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));[p,c]=[c,p]}return p[n]}
-function airportRank(p){return p.type==='large_airport'?30:p.type==='medium_airport'?15:0}
-function mergeWorldAirports(rows){const map=new Map();for(const p of [...LOCAL_AIRPORTS,...(rows||[])]){if(!p?.iata)continue;const iata=String(p.iata).toUpperCase();if(!/^[A-Z]{3}$/.test(iata))continue;map.set(iata,{...p,iata})}WORLD_AIRPORTS=[...map.values()];WORLD_CATALOG_READY=WORLD_AIRPORTS.length>LOCAL_AIRPORTS.length}
-async function loadWorldCatalog(){
- try{const c=JSON.parse(localStorage.getItem(AIRPORT_CACHE_KEY)||'null');if(c?.airports?.length)mergeWorldAirports(c.airports)}catch(e){}
- try{const r=await fetch('/api/airport-catalog',{cache:'no-store'});if(r.ok){const d=await r.json();if(Array.isArray(d.airports)&&d.airports.length){mergeWorldAirports(d.airports);try{localStorage.setItem(AIRPORT_CACHE_KEY,JSON.stringify({version:d.indexVersion,count:d.count,downloaded:d.downloaded,airports:d.airports}))}catch(e){}}}}catch(e){console.warn('Catalogo mondiale aeroporti non disponibile',e)}
+const AIRPORT_CACHE_KEY='twp-airports-world-v1';
+const STATIC_AIRPORTS=[
+['FCO','Roma Fiumicino','Roma','IT'],['CIA','Roma Ciampino','Roma','IT'],['MXP','Milano Malpensa','Milano','IT'],['LIN','Milano Linate','Milano','IT'],['BGY','Bergamo Orio al Serio','Bergamo','IT'],['NAP','Napoli Capodichino','Napoli','IT'],['VCE','Venezia Marco Polo','Venezia','IT'],['BLQ','Bologna Guglielmo Marconi','Bologna','IT'],['TRN','Torino Caselle','Torino','IT'],['FLR','Firenze Peretola','Firenze','IT'],['PRG','Václav Havel Airport Prague','Praga','CZ'],['LHR','London Heathrow','Londra','GB'],['LGW','London Gatwick','Londra','GB'],['CDG','Paris Charles de Gaulle','Parigi','FR'],['ORY','Paris Orly','Parigi','FR'],['MAD','Madrid Barajas','Madrid','ES'],['BCN','Barcelona El Prat','Barcellona','ES'],['AMS','Amsterdam Schiphol','Amsterdam','NL'],['FRA','Frankfurt','Francoforte','DE'],['MUC','Munich','Monaco','DE'],['VIE','Vienna','Vienna','AT'],['ZRH','Zurich','Zurigo','CH'],['BRU','Brussels','Bruxelles','BE'],['LIS','Lisbon','Lisbona','PT'],['ATH','Athens','Atene','GR'],['DUB','Dublin','Dublino','IE'],['IST','Istanbul','Istanbul','TR']
+].map(([iata,name,city,country])=>({iata,name,city,country,type:'airport',keywords:''}));
+let AIRPORTS=[...STATIC_AIRPORTS];
+const foldAirport=v=>String(v||'').toLocaleLowerCase('it').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+function mergeAirportCatalog(rows){
+ const map=new Map();
+ for(const p of rows||[]) { if(!p||!p.iata) continue; const code=String(p.iata).toUpperCase(); if(!/^[A-Z]{3}$/.test(code)) continue; map.set(code,{...p,iata:code}); }
+ for(const p of STATIC_AIRPORTS) if(!map.has(p.iata)) map.set(p.iata,p);
+ AIRPORTS=[...map.values()];
 }
-const worldCatalogPromise=loadWorldCatalog();
-
+const CITY_SEARCH_ALIASES={
+  praga:['praga','prague','praha'],prague:['praga','prague','praha'],praha:['praga','prague','praha'],
+  roma:['roma','rome'],rome:['roma','rome'],milano:['milano','milan'],milan:['milano','milan'],
+  napoli:['napoli','naples'],naples:['napoli','naples'],venezia:['venezia','venice'],venice:['venezia','venice'],
+  firenze:['firenze','florence'],florence:['firenze','florence'],torino:['torino','turin'],turin:['torino','turin'],
+  genova:['genova','genoa'],genoa:['genova','genoa'],parigi:['parigi','paris'],paris:['parigi','paris'],
+  londra:['londra','london'],london:['londra','london'],vienna:['vienna','wien'],wien:['vienna','wien'],
+  monaco:['monaco','munich','munchen','muenchen'],munich:['munich','monaco','munchen','muenchen'],
+  francoforte:['francoforte','frankfurt'],frankfurt:['frankfurt','francoforte'],
+  barcellona:['barcellona','barcelona'],barcelona:['barcelona','barcellona'],lisbona:['lisbona','lisbon'],lisbon:['lisbon','lisbona'],
+  atene:['atene','athens'],athens:['athens','atene'],bruxelles:['bruxelles','brussels'],brussels:['brussels','bruxelles'],
+  zurigo:['zurigo','zurich'],zurich:['zurich','zurigo'],
+  newyork:['new york','newyork','nyc'],newyorkcity:['new york','newyork','nyc'],nyc:['new york','newyork','nyc'],
+  boston:['boston'],chicago:['chicago'],losangeles:['los angeles','losangeles','la'],sanfrancisco:['san francisco','sanfrancisco','sf'],
+  washington:['washington','washington dc','washington d.c.'],miami:['miami'],atlanta:['atlanta'],dallas:['dallas'],houston:['houston'],
+  seattle:['seattle'],denver:['denver'],philadelphia:['philadelphia'],toronto:['toronto'],montreal:['montreal'],vancouver:['vancouver'],
+};
+const METRO_CITY_ALIASES={
+  milano:['milano','milan','bergamo'],milan:['milano','milan','bergamo'],
+  roma:['roma','rome','fiumicino','ciampino'],rome:['roma','rome','fiumicino','ciampino'],
+  londra:['londra','london'],london:['londra','london'],parigi:['parigi','paris'],paris:['parigi','paris']
+};
+function airportSearchAliases(n){
+ const direct=CITY_SEARCH_ALIASES[n];
+ return direct ? [...new Set(direct.map(foldAirport).filter(Boolean).concat([n]))] : [n];
+}
+function airportRank(p){return p.type==='large_airport'?30:p.type==='medium_airport'?15:0;}
+function airportEditDistance(a,b){
+ const m=a.length,n=b.length;if(!m)return n;if(!n)return m;
+ let prev=Array.from({length:n+1},(_,i)=>i),cur=new Array(n+1);
+ for(let i=1;i<=m;i++){cur[0]=i;for(let j=1;j<=n;j++)cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));[prev,cur]=[cur,prev];}
+ return prev[n];
+}
+function airportCityMatchScore(city,n,aliases){
+ if(aliases.includes(city))return 1000;
+ if(aliases.some(a=>city.startsWith(a)||a.startsWith(city)))return 920;
+ const d=airportEditDistance(city,n);
+ const maxLen=Math.max(city.length,n.length);
+ if(maxLen>=5 && d<=Math.max(1,Math.floor(maxLen*0.15)))return 760-d*20;
+ return 0;
+}
 function localAirportSuggestions(q){
- const raw=(q||'').trim(), n=normAirport(raw); if(!n)return [];
+ const raw=(q||'').trim(), n=foldAirport(raw); if(!n)return [];
  const code=raw.toUpperCase();
- const exactIata=WORLD_AIRPORTS.filter(p=>String(p.iata||'').toUpperCase()===code);
- if(exactIata.length)return exactIata.slice(0,6);
- const world=WORLD_AIRPORTS.length?WORLD_AIRPORTS:[];
- const base=LOCAL_AIRPORTS||[];
- const aliases=airportAliases(n);
- const metro=(METRO_CITY_GROUPS[n]||[]).map(normAirport);
- const localCity=[];
- for(const p of base){
-   const c=normAirport(p.city); let score=0;
-   if(aliases.includes(c))score=1100;
-   else if(metro.includes(c))score=1080;
-   else if(aliases.some(a=>c.startsWith(a)||a.startsWith(c)))score=1030;
-   else if(metro.some(a=>c.startsWith(a)||a.startsWith(c)))score=1010;
-   if(score)localCity.push([score,p]);
+ const exact=AIRPORTS.filter(p=>String(p.iata||'').toUpperCase()===code);
+ if(exact.length)return exact.slice(0,6);
+ const aliases=airportSearchAliases(n);
+ const metro=(METRO_CITY_ALIASES[n]||[]).map(foldAirport).filter(Boolean);
+ // 1) City lock: if the query identifies a city, never mix in airports from
+ // unrelated cities merely because their keywords happen to contain the text.
+ const cityScored=AIRPORTS.map(p=>{
+   const city=foldAirport(p.city);
+   return [Math.max(airportCityMatchScore(city,n,aliases), metro.includes(city)?1000:0),p];
+ }).filter(x=>x[0]>0);
+ const bestCityScore=cityScored.length?Math.max(...cityScored.map(x=>x[0])):0;
+ const cityMatches=cityScored.filter(x=>x[0]===bestCityScore).map(x=>x[1]);
+ if(cityMatches.length){
+   return cityMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
  }
- if(localCity.length)return localCity.sort((a,b)=>b[0]-a[0]||airportRank(b[1])-airportRank(a[1])||String(a[1].iata).localeCompare(String(b[1].iata))).slice(0,6).map(x=>x[1]);
- const city=[];
- for(const p of world){
-   const c=normAirport(p.city); let score=0;
-   if(aliases.includes(c))score=1000;
-   else if(metro.includes(c))score=980;
-   else if(aliases.some(a=>c.startsWith(a)||a.startsWith(c)))score=900;
-   else if(metro.some(a=>c.startsWith(a)||a.startsWith(c)))score=880;
-   else { const d=editDistance(c,n), max=Math.max(c.length,n.length); if(max>=5&&d<=Math.max(1,Math.ceil(max*.20)))score=760-d*20; }
-   if(score)city.push([score,p]);
+ // 2) Airport name. Still no generic keyword substring matching.
+ const nameMatches=AIRPORTS.filter(p=>{
+   const name=foldAirport(p.name);
+   return aliases.some(a=>name===a||name.startsWith(a)||name.includes(' '+a+' '));
+ });
+ if(nameMatches.length){
+   return nameMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
  }
- if(city.length){const best=Math.max(...city.map(x=>x[0]));return city.filter(x=>x[0]>=best-40).sort((a,b)=>b[0]-a[0]||airportRank(b[1])-airportRank(a[1])||String(a[1].iata).localeCompare(String(b[1].iata))).slice(0,6).map(x=>x[1]);}
- const names=world.filter(p=>aliases.some(a=>{const name=normAirport(p.name);return name===a||name.startsWith(a+' ')||name.includes(' '+a+' ')||name.includes('-'+a+'-')||name.includes('-'+a+' ');}));
- if(names.length)return names.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
- // Last resort: fuzzy-match the query against meaningful city/name tokens only.
- // This catches cases where the airport serves a suburb (e.g. Katowice -> Pyrzowice)
- // or the official name contains punctuation (e.g. Montréal).
- const fuzzy=[];
- for(const p of world){
-   const texts=[normAirport(p.city),normAirport(p.name)];
-   let best=0;
-   for(const text of texts){
-     for(const token of text.split(/\s+/).filter(t=>t.length>=4)){
-       const d=editDistance(n,token), m=Math.max(n.length,token.length);
-       if(m>=5){const ratio=1-d/m;if(ratio>=0.78)best=Math.max(best,ratio);}
-     }
-   }
-   if(best>=0.78)fuzzy.push([best,p]);
+ // 3) Exact keyword only (OurAirports keywords can contain broad/unrelated
+ // phrases, so substring matching is deliberately forbidden here).
+ const keywordMatches=AIRPORTS.filter(p=>String(p.keywords||'').split(',').map(x=>foldAirport(x)).some(k=>aliases.includes(k)));
+ if(keywordMatches.length){
+   return keywordMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
  }
- if(fuzzy.length){fuzzy.sort((a,b)=>b[0]-a[0]||airportRank(b[1])-airportRank(a[1])||String(a[1].iata).localeCompare(String(b[1].iata)));return fuzzy.slice(0,6).map(x=>x[1]);}
- const kws=world.filter(p=>String(p.keywords||'').split(',').map(normAirport).some(k=>aliases.includes(k)));
- if(kws.length)return kws.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
  return [];
 }
+
+async function loadWorldAirportCatalog(){
+ try{
+   const cached=localStorage.getItem(AIRPORT_CACHE_KEY);
+   if(cached){const c=JSON.parse(cached);if(Array.isArray(c.airports)&&c.airports.length)mergeAirportCatalog(c.airports);}
+ }catch(e){}
+ try{
+   const r=await fetch('/api/airport-catalog',{cache:'no-store'}); const d=await r.json();
+   if(d&&Array.isArray(d.airports)&&d.airports.length){mergeAirportCatalog(d.airports);try{localStorage.setItem(AIRPORT_CACHE_KEY,JSON.stringify({version:d.indexVersion,count:d.count,downloaded:d.downloaded,airports:d.airports}));}catch(e){}}
+ }catch(e){console.warn('Catalogo aeroporti mondiale non disponibile:',e)}
+}
+loadWorldAirportCatalog();
 
 let offers=[], selected=null, searchMode='outbound', outboundOffer=null, returnOffers=[], returnOffer=null, busy=false;
 function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
@@ -184,68 +183,42 @@ function renderList(arr,mode){
 }
 function render(){renderList(offers,'outbound')}
 function setupPicker(id){
- const input=$(id),box=$(id+'Suggestions'); let timer=null, seq=0, controller=null;
+ const input=$(id),box=$(id+'Suggestions'); let timer=null;
  const hide=()=>box.classList.add('hidden');
- const run=async(q)=>{
-   const mySeq=++seq;
-   if(controller) controller.abort();
-   controller=new AbortController();
-   try{await suggestPlaces(id,q,controller.signal,mySeq)}catch(e){if(e.name!=='AbortError')console.warn(e)}
- };
- input.addEventListener('input',()=>{
-   input.dataset.iata=''; clearTimeout(timer); hide();
-   const q=input.value.trim(); if(q.length<2)return;
-   timer=setTimeout(()=>run(q),220);
- });
- input.addEventListener('focus',()=>{
-   const q=input.value.trim(); if(q.length>=2)run(q);
- });
- input.addEventListener('keydown',e=>{if(e.key==='Escape')hide()});
- box.addEventListener('pointerdown',e=>{
-   const el=e.target.closest('.suggestion'); if(!el)return;
-   e.preventDefault(); const p=el._place;
-   if(p){
-     const code=(p.iata||p.cityIata||'').toUpperCase();
-     input.value=code ? `${code} — ${p.name||p.city||''}`.trim() : (p.name||p.city||input.value);
-     input.dataset.iata=code;
+ const show=(q)=>{
+   const arr=localAirportSuggestions(q);
+   if(input.value.trim()!==q)return;
+   if(!arr.length){
+     box.innerHTML='<div class="suggestion"><span>Nessun aeroporto trovato. Puoi inserire direttamente un codice IATA (es. FCO).</span></div>';
+   }else{
+     box.innerHTML=arr.map((p,i)=>`<div class="suggestion" data-index="${i}" role="option"><b>${esc(p.iata||'')} — ${esc(p.name||'')}</b><span>${esc(p.city||'')} · ${esc(p.country||'')}</span></div>`).join('');
+     box.querySelectorAll('.suggestion').forEach((el,i)=>el._place=arr[i]);
    }
-   hide();
- });
- document.addEventListener('pointerdown',e=>{
-   if(!box.contains(e.target)&&e.target!==input)hide();
- });
-}
-
-async function suggestPlaces(id,q,signal,seq){
- const input=$(id),box=$(id+'Suggestions');
- // Per l'autocomplete VOLI usiamo una sola fonte: il catalogo aeroporti locale/mondiale.
- // Non facciamo fallback a /api/place-suggestions, perché quel servizio può restituire
- // luoghi non pertinenti quando il catalogo è ancora in caricamento.
- if(!WORLD_CATALOG_READY){
-   try{ await worldCatalogPromise; }catch(e){}
- }
- if(input.value.trim()!==q)return;
- const arr=localAirportSuggestions(q);
- if(!arr.length){
-   box.innerHTML='<div class="suggestion"><span>Nessun aeroporto trovato. Prova il nome della città o il codice IATA (es. JFK).</span></div>';
    box.classList.remove('hidden');
-   return;
- }
- box.innerHTML=arr.map((p,i)=>`<div class="suggestion" data-index="${i}" role="option"><b>${esc(p.iata||'')} — ${esc(p.name||'')}</b><span>${esc(p.city||'')} · ${esc(p.country||'')}</span></div>`).join('');
- box.querySelectorAll('.suggestion').forEach((el,i)=>el._place=arr[i]);
- box.classList.remove('hidden');
+ };
+ input.addEventListener('input',()=>{clearTimeout(timer);input.dataset.iata='';const q=input.value.trim();hide();if(q.length<2)return;timer=setTimeout(()=>show(q),40)});
+ input.addEventListener('focus',()=>{const q=input.value.trim();if(q.length>=2)show(q)});
+ input.addEventListener('keydown',e=>{if(e.key==='Escape')hide()});
+ box.addEventListener('pointerdown',e=>{const el=e.target.closest('.suggestion');if(!el)return;e.preventDefault();const p=el._place;if(p){const code=(p.iata||'').toUpperCase();input.value=code?`${code} — ${p.name||p.city||''}`:(p.name||p.city||input.value);input.dataset.iata=code}hide()});
+ document.addEventListener('pointerdown',e=>{if(!box.contains(e.target)&&e.target!==input)hide()});
 }
 
-async function resolvePlace(id){
- const input=$(id),q=input.value.trim(),existing=input.dataset.iata||'';
- if(existing&&/^[A-Z]{3}$/.test(existing))return ({MPX:'MXP'}[existing]||existing);
- const shown=q.match(/^([A-Za-z]{3})\s*[—-]/);if(shown){const code=shown[1].toUpperCase();input.dataset.iata=code;return ({MPX:'MXP'}[code]||code)}
- if(/^[A-Za-z]{3}$/.test(q)){input.dataset.iata=q.toUpperCase();return ({MPX:'MXP'}[q.toUpperCase()]||q.toUpperCase())}
- if(!WORLD_CATALOG_READY){try{await worldCatalogPromise}catch(e){}}
- const local=localAirportSuggestions(q);const first=local[0];
- if(first?.iata){input.dataset.iata=String(first.iata).toUpperCase();return input.dataset.iata}
- const r=await fetch('/api/place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});const d=await r.json();if(!r.ok)throw Error(d.error||'Impossibile risolvere il luogo');
- const hit=(d.places||[])[0];if(!hit){input.dataset.iata='';return q}const code=hit.iata||hit.cityIata;if(!code){input.dataset.iata='';return q}input.dataset.iata=({'MPX':'MXP'}[String(code).toUpperCase()]||String(code).toUpperCase());return input.dataset.iata;
+async function searchFlights(){
+ if(busy)return; setBusy(true,'Sto cercando i voli su Skyscanner tramite Apify…');
+ selected=null;outboundOffer=null;returnOffer=null;returnOffers=[];searchMode='outbound';
+ try{const body=formBody();body.origin=await resolvePlace('origin');body.destination=await resolvePlace('destination');body.baggage=$('baggage').value;if(!body.departure_date){$('status').innerHTML='<div class="err">Compila la data di andata.</div>';return}const hasReturn=!!body.return_date;$('status').innerHTML='<div class="warn"><b>Ricerca in corso…</b> Attendi la risposta di Skyscanner. Evita di cliccare più volte.</div>';$('results').innerHTML='<div class="empty">⏳ Attendo i risultati di Skyscanner…</div>';const d=await apiSearch({...body,return_date:''});offers=filterOffers(d.offers||[]);offers.forEach(o=>o.baggageExtras=[]);$('status').innerHTML=`<div class="ok"><b>1. Scegli il volo di andata.</b> ${offers.length} soluzioni disponibili${hasReturn?' · dopo la scelta cercherò il ritorno':''}. <span class="small">Prezzi da Skyscanner, soggetti a variazione.</span></div>`;render()}catch(e){offers=[];$('results').innerHTML='<div class="empty">Nessun risultato.</div>';$('status').innerHTML='<div class="err">'+esc(e.message)+'</div>'}finally{setBusy(false)}}
+async function selectOutbound(id){
+ if(busy)return; const o=offers.find(x=>x.offerId===id);if(!o)return;setBusy(true,'Hai scelto l’andata. Sto cercando il ritorno su Skyscanner…');selected=id;render();
+ try{outboundOffer=o;if(!$('return').value){showImportReady();return}$('status').innerHTML='<div class="warn"><b>Andata selezionata.</b> Sto cercando il ritorno su Skyscanner. Attendi e non cliccare nuovamente.</div>';const body=formBody();const backBody={...body,origin:body.destination,destination:body.origin,departure_date:body.return_date,return_date:''};const d=await apiSearch(backBody);returnOffers=filterOffers(d.offers||[]);returnOffers.forEach(x=>x.baggageExtras=[]);searchMode='return';selected=null;$('status').innerHTML=`<div class="ok"><b>2. Scegli il volo di ritorno.</b> ${returnOffers.length} soluzioni disponibili. <span class="small">Prezzi da Skyscanner, soggetti a variazione.</span></div>`;renderList(returnOffers,'return')}catch(e){$('status').innerHTML='<div class="err">'+esc(e.message)+'</div>'}finally{setBusy(false)}}
+async function selectReturn(id){if(busy)return;const o=returnOffers.find(x=>x.offerId===id);if(!o||!outboundOffer)return;setBusy(true,'Sto preparando il riepilogo del viaggio…');try{selected=id;renderList(returnOffers,'return');returnOffer=o;showImportReady();}finally{setBusy(false)}}
+function showImportReady(){
+ const pax=Number($('pax').value)||1;
+ const isRound=!!returnOffer;
+ const sameCurrency=!returnOffer||outboundOffer.currency===returnOffer.currency;
+ const total=sameCurrency?(Number(outboundOffer?.price)||0)+(Number(returnOffer?.price)||0):null;
+ $('status').innerHTML=isRound?`<div class="ok"><b>Andata e ritorno selezionati.</b> Totale indicativo ${total==null?'—':money(total,outboundOffer.currency)} per ${pax} pax. <span class="small">Il prezzo è quello mostrato da Skyscanner al momento della ricerca e può cambiare.</span></div>`:`<div class="ok"><b>Volo di sola andata selezionato.</b> ${money(outboundOffer.price,outboundOffer.currency)} per ${pax} pax.</div>`;
+ const backHtml=isRound?`<br><b>Ritorno:</b> ${esc(sliceText(returnOffer.slices?.[0]||[]))} — ${money(returnOffer.price,returnOffer.currency)}`:'';
+ $('importBox').innerHTML='<div class="ok"><b>Andata:</b> '+esc(sliceText(outboundOffer.slices?.[0]||[]))+' — '+money(outboundOffer.price,outboundOffer.currency)+backHtml+'<div class="actions"><button onclick="importSelectedTrip()">＋ Importa nel Travel Planner</button></div></div>'
 }
 function importSelectedTrip(){
  if(busy||!outboundOffer)return; setBusy(true,'Sto aggiungendo il volo al Travel Planner…');
@@ -264,22 +237,5 @@ setupPicker('origin');setupPicker('destination');
 </script>
 <script>
 (()=>{const f=location.pathname.split(/[\\/]/).pop()||"Home.html";const map={"Home.html":"home","Cerca_Voli_Desktop.html":"voli","Cerca_Hotel_Desktop.html":"hotel","Cerca_Autonoleggio_Desktop.html":"auto","Travel_Planner.html":"planner"};document.querySelector(`.tw-tabs a[data-page="${map[f]||"home"}"]`)?.classList.add("active");})();
-</script><script>
-// Cloud-first update policy: unregister legacy service workers and clear their Cache API
-// once per browser session. This does not delete planner data stored in localStorage.
-(async()=>{
-  try{
-    const key="twp-cloud-refresh-2026-09-16";
-    if(!sessionStorage.getItem(key)){
-      sessionStorage.setItem(key,"1");
-      if("serviceWorker" in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister()));}
-      if("caches" in window){const keys=await caches.keys();await Promise.all(keys.map(k=>caches.delete(k)));}
-      const u=new URL(location.href);u.searchParams.set("v","cloud-20260916");
-      location.replace(u.toString());
-      return;
-    }
-  }catch(e){}
-  if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js",{updateViaCache:"none"}).catch(()=>{}));}
-})();
-</script>
+</script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}</script>
 </body></html>
