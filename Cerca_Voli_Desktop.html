@@ -155,29 +155,73 @@ function localAirportSuggestions(q){
  const code=raw.toUpperCase();
  const exact=AIRPORTS.filter(p=>String(p.iata||'').toUpperCase()===code);
  if(exact.length)return exact.slice(0,6);
+
+ // Explicit metropolitan-city handling. This is intentionally checked before
+ // the worldwide catalog matching so a city such as "Milano/Milan" cannot be
+ // confused with unrelated airport keywords from other countries.
+ const metroMap={
+   milano:['milano','milan','bergamo','malpensa','linate'],
+   milan:['milano','milan','bergamo','malpensa','linate'],
+   roma:['roma','rome','fiumicino','ciampino'],
+   rome:['roma','rome','fiumicino','ciampino'],
+   napoli:['napoli','naples'],
+   naples:['napoli','naples'],
+   venezia:['venezia','venice'],
+   venice:['venezia','venice'],
+   torino:['torino','turin'],
+   turin:['torino','turin'],
+   parigi:['parigi','paris'],
+   paris:['parigi','paris'],
+   londra:['londra','london'],
+   london:['londra','london'],
+   newyork:['new york','newyork','nyc'],
+   newyorkcity:['new york','newyork','nyc'],
+   nyc:['new york','newyork','nyc'],
+   boston:['boston'],
+   montreal:['montreal'],
+   tokyo:['tokyo'],
+   sydney:['sydney'],
+ };
+ const metro=metroMap[n];
+ if(metro){
+   const norm=metro.map(foldAirport);
+   const matches=AIRPORTS.filter(p=>{
+     const city=foldAirport(p.city||'');
+     const name=foldAirport(p.name||'');
+     const iata=foldAirport(p.iata||'');
+     return norm.includes(city) || norm.some(a=>name===a || name.startsWith(a+' ') || name.includes(' '+a+' ') || iata===a);
+   });
+   // Always retain the known Milan airport choices even if the remote catalog
+   // has a different municipality for one of them.
+   if(n==='milano'||n==='milan'){
+     const known=AIRPORTS.filter(p=>['MXP','LIN','BGY'].includes(String(p.iata||'').toUpperCase()));
+     for(const p of known) if(!matches.some(x=>x.iata===p.iata)) matches.push(p);
+   }
+   if(matches.length){
+     return matches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
+   }
+ }
+
  const aliases=airportSearchAliases(n);
- const metro=(METRO_CITY_ALIASES[n]||[]).map(foldAirport).filter(Boolean);
- // 1) City lock: if the query identifies a city, never mix in airports from
- // unrelated cities merely because their keywords happen to contain the text.
- const cityScored=AIRPORTS.map(p=>{
-   const city=foldAirport(p.city);
-   return [Math.max(airportCityMatchScore(city,n,aliases), metro.includes(city)?1000:0),p];
- }).filter(x=>x[0]>0);
- const bestCityScore=cityScored.length?Math.max(...cityScored.map(x=>x[0])):0;
- const cityMatches=cityScored.filter(x=>x[0]===bestCityScore).map(x=>x[1]);
+ // General city matching: require a real municipality/city match, not a loose
+ // substring in the OurAirports keywords field.
+ const cityMatches=AIRPORTS.filter(p=>{
+   const city=foldAirport(p.city||'');
+   return aliases.some(a=>city===a || city.startsWith(a) || a.startsWith(city));
+ });
  if(cityMatches.length){
    return cityMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
  }
- // 2) Airport name. Still no generic keyword substring matching.
+
  const nameMatches=AIRPORTS.filter(p=>{
-   const name=foldAirport(p.name);
-   return aliases.some(a=>name===a||name.startsWith(a)||name.includes(' '+a+' '));
+   const name=foldAirport(p.name||'');
+   return aliases.some(a=>name===a || name.startsWith(a+' ') || name.includes(' '+a+' '));
  });
  if(nameMatches.length){
    return nameMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
  }
- // 3) Exact keyword only (OurAirports keywords can contain broad/unrelated
- // phrases, so substring matching is deliberately forbidden here).
+
+ // Exact keyword matches only; never use broad keyword substring matching.
  const keywordMatches=AIRPORTS.filter(p=>String(p.keywords||'').split(',').map(x=>foldAirport(x)).some(k=>aliases.includes(k)));
  if(keywordMatches.length){
    return keywordMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
