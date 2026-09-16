@@ -4,24 +4,60 @@
   const page=(location.pathname.split('/').pop()||'Home.html').toLowerCase();
   const isLogin=page==='login.html';
   const originalFetch=window.fetch.bind(window);
+
+  // La sessione vera vive in sessionStorage: un refresh la mantiene,
+  // mentre la chiusura della sessione/finestra del browser la perde.
+  // Compatibilità: Login.html della versione precedente scrive ancora il token
+  // in localStorage dopo un login riuscito. Alla prima pagina protetta lo
+  // trasferiamo subito in sessionStorage e cancelliamo il residuo persistente.
+  if(!isLogin){
+    try{
+      const legacy=localStorage.getItem(TOKEN_KEY);
+      if(!sessionStorage.getItem(TOKEN_KEY) && legacy) sessionStorage.setItem(TOKEN_KEY,legacy);
+      localStorage.removeItem(TOKEN_KEY);
+    }catch(e){}
+  }else{
+    // Non lasciare vecchi token persistenti che potrebbero saltare il login.
+    try{ localStorage.removeItem(TOKEN_KEY); }catch(e){}
+  }
+
   window.twpAuthToken=()=>sessionStorage.getItem(TOKEN_KEY)||'';
-  window.twpSetAuth=(token)=>{if(token)sessionStorage.setItem(TOKEN_KEY,token);else sessionStorage.removeItem(TOKEN_KEY)};
-  window.twpLogout=()=>{sessionStorage.removeItem(TOKEN_KEY);location.href='Login.html'};
+  window.twpSetAuth=(token)=>{
+    try{
+      if(token) sessionStorage.setItem(TOKEN_KEY,token);
+      else sessionStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(TOKEN_KEY);
+    }catch(e){}
+  };
+  window.twpLogout=()=>{
+    try{sessionStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_KEY);}catch(e){}
+    location.href='Login.html';
+  };
+
   window.fetch=async function(input,init={}){
     const opts={...init,headers:new Headers(init.headers||{})};
     const token=sessionStorage.getItem(TOKEN_KEY);
     if(token) opts.headers.set('Authorization','Bearer '+token);
     const res=await originalFetch(input,opts);
-    if(res.status===401 && !isLogin){sessionStorage.removeItem(TOKEN_KEY);location.href='Login.html';}
+    if(res.status===401 && !isLogin){
+      try{sessionStorage.removeItem(TOKEN_KEY);localStorage.removeItem(TOKEN_KEY);}catch(e){}
+      location.href='Login.html';
+    }
     return res;
   };
+
   if(isLogin)return;
+
   const guard=async()=>{
     const token=sessionStorage.getItem(TOKEN_KEY);
     if(!token){location.replace('Login.html');return;}
     try{
       const r=await originalFetch('/api/auth/me',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
-      if(!r.ok){sessionStorage.removeItem(TOKEN_KEY);location.replace('Login.html');return;}
+      if(!r.ok){
+        sessionStorage.removeItem(TOKEN_KEY);
+        location.replace('Login.html');
+        return;
+      }
       const d=await r.json();
       document.documentElement.dataset.twpUser=d.username||'';
       const addUserControls=()=>{
@@ -32,10 +68,12 @@
         const b=document.createElement('button'); b.id='twpLogoutBtn'; b.type='button'; b.textContent='Esci';
         b.style.cssText='border:0;border-radius:8px;padding:6px 9px;background:#17324c;color:#fff;font-weight:700;cursor:pointer';
         b.title='Disconnetti utente'; b.onclick=window.twpLogout; wrap.append(label,b); document.body.appendChild(wrap);
-        document.documentElement.dataset.twpUser=d.username||'';
       };
       if(document.body)addUserControls();else window.addEventListener('DOMContentLoaded',addUserControls,{once:true});
-    }catch(e){sessionStorage.removeItem(TOKEN_KEY);location.replace('Login.html');}
+    }catch(e){
+      sessionStorage.removeItem(TOKEN_KEY);
+      location.replace('Login.html');
+    }
   };
   guard();
 })();
