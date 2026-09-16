@@ -1,4 +1,4 @@
-import json, os, re, webbrowser, hashlib, time, ssl, gzip, csv, io, unicodedata, difflib, threading
+import json, os, re, webbrowser, hashlib, time, ssl, gzip, csv, io, unicodedata, difflib
 from datetime import datetime
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, unquote, quote
@@ -56,8 +56,7 @@ PLANNER_DATA_FILE = DATA_DIR / 'planner-data.json'
 USB_SAVE_FILE = DATA_DIR / 'Travel_Work_Planner_Salvataggio.json'
 AIRPORT_INDEX_FILE = RUNTIME_DIR / 'airports-iata.json'
 AIRPORT_SOURCE_URL = 'https://davidmegginson.github.io/ourairports-data/airports.csv'
-AIRPORT_INDEX_VERSION = '26.0.0-world'
-AIRPORT_INDEX_MAX_AGE = 24 * 60 * 60
+AIRPORT_INDEX_VERSION = '25.0.47'
 
 
 def json_out(h, status, obj):
@@ -998,11 +997,7 @@ AIRPORT_CITY_ALIASES = {
     'napoli':['naples'],'florence':['firenze'],'firenze':['florence'],'venice':['venezia'],
     'venezia':['venice'],'turin':['torino'],'torino':['turin'],'genoa':['genova'],'genova':['genoa'],
     'london':['londra'],'londra':['london'],'paris':['parigi'],'parigi':['paris'],
-    'berlin':['berlino'],'berlino':['berlin'],
-    'newyork':['new york','newyork','nyc'],'newyorkcity':['new york','newyork','nyc'],'nyc':['new york','newyork','nyc'],
-    'boston':['boston'],'chicago':['chicago'],'losangeles':['los angeles','losangeles','la'],'sanfrancisco':['san francisco','sanfrancisco','sf'],
-    'washington':['washington','washington dc','washington d.c.'],'miami':['miami'],'atlanta':['atlanta'],'dallas':['dallas'],'houston':['houston'],
-    'seattle':['seattle'],'denver':['denver'],'philadelphia':['philadelphia'],'toronto':['toronto'],'montreal':['montreal'],'vancouver':['vancouver']
+    'berlin':['berlino'],'berlino':['berlin']
 }
 
 # Airports that commonly serve a metropolitan city even when the municipality
@@ -1015,13 +1010,6 @@ STATIC_AIRPORTS = [
     ('NAP','Napoli Capodichino','Naples','IT','large_airport'), ('VCE','Venezia Marco Polo','Venice','IT','large_airport'),
     ('BLQ','Bologna Guglielmo Marconi','Bologna','IT','large_airport'), ('TRN','Torino Caselle','Turin','IT','large_airport'),
     ('FLR','Firenze Peretola','Florence','IT','medium_airport'), ('PSA','Pisa Galileo Galilei','Pisa','IT','large_airport'),
-    ('JFK','John F. Kennedy International Airport','New York','US','large_airport'), ('LGA','LaGuardia Airport','New York','US','large_airport'), ('EWR','Newark Liberty International Airport','Newark','US','large_airport'),
-    ('BOS','Boston Logan International Airport','Boston','US','large_airport'), ('ORD','O\'Hare International Airport','Chicago','US','large_airport'), ('MDW','Midway International Airport','Chicago','US','large_airport'),
-    ('LAX','Los Angeles International Airport','Los Angeles','US','large_airport'), ('SFO','San Francisco International Airport','San Francisco','US','large_airport'),
-    ('IAD','Washington Dulles International Airport','Washington','US','large_airport'), ('DCA','Ronald Reagan Washington National Airport','Washington','US','large_airport'),
-    ('MIA','Miami International Airport','Miami','US','large_airport'), ('ATL','Hartsfield Jackson Atlanta International Airport','Atlanta','US','large_airport'),
-    ('DFW','Dallas Fort Worth International Airport','Dallas','US','large_airport'), ('IAH','George Bush Intercontinental Airport','Houston','US','large_airport'),
-    ('SEA','Seattle Tacoma International Airport','Seattle','US','large_airport'), ('DEN','Denver International Airport','Denver','US','large_airport'), ('PHL','Philadelphia International Airport','Philadelphia','US','large_airport'),
     ('GOA','Genova Cristoforo Colombo','Genoa','IT','medium_airport'), ('BRI','Bari Karol Wojtyla','Bari','IT','large_airport'),
     ('CTA','Catania Fontanarossa','Catania','IT','large_airport'), ('PMO','Palermo Falcone Borsellino','Palermo','IT','large_airport'),
     ('CAG','Cagliari Elmas','Cagliari','IT','large_airport'), ('OLB','Olbia Costa Smeralda','Olbia','IT','large_airport'),
@@ -1041,6 +1029,9 @@ def _static_airport_rows():
 
 
 AIRPORT_METRO_ALIASES = {
+    'new york':['new york','queens','newark'],'newyork':['new york','queens','newark'],'nyc':['new york','queens','newark'],
+    'tokyo':['tokyo'],'osaka':['osaka'],'seoul':['seoul'],'beijing':['beijing'],'shanghai':['shanghai'],
+    'sydney':['sydney'],'melbourne':['melbourne'],'brisbane':['brisbane'],'toronto':['toronto'],'boston':['boston'],
     'milan':['milan','milano','bergamo'],'milano':['milan','milano','bergamo'],
     'rome':['rome','roma'],'roma':['rome','roma'],'london':['london','londra'],
     'londra':['london','londra'],'paris':['paris','parigi'],'parigi':['paris','parigi'],
@@ -1052,133 +1043,92 @@ AIRPORT_METRO_ALIASES = {
 }
 
 def _airport_download_index():
-    """Download the current OurAirports CSV and build a compact flight-search index.
-    We keep only airports with IATA codes and scheduled airline service, which is
-    the useful subset for passenger flight searches. The source is public-domain
-    OurAirports data and is regenerated daily.
-    """
     RUNTIME_DIR.mkdir(exist_ok=True)
-    req=Request(AIRPORT_SOURCE_URL,headers={'Accept':'text/csv,*/*','User-Agent':'TravelWorkPlanner/26 airport index'},method='GET')
-    with urlopen(req,timeout=120) as r:
-        raw=r.read()
+    req=Request(AIRPORT_SOURCE_URL,headers={'Accept':'text/csv,*/*','User-Agent':'TravelWorkPlanner/25.0.41 airport index'},method='GET')
+    with urlopen(req,timeout=90) as r: raw=r.read()
     reader=csv.DictReader(io.StringIO(raw.decode('utf-8-sig',errors='replace')))
-    rows=[]; seen=set()
+    rows=[]
     for row in reader:
-        if str(row.get('scheduled_service') or '').strip().lower()!='yes':
-            continue
-        if str(row.get('type') or '').strip() not in ('large_airport','medium_airport','small_airport'):
-            continue
+        if str(row.get('scheduled_service') or '').strip().lower()!='yes': continue
+        if str(row.get('type') or '').strip() not in ('large_airport','medium_airport','small_airport'): continue
         iata=str(row.get('iata_code') or '').strip().upper()
+        # Canonicalize known legacy/incorrect codes before they reach the flight UI/provider.
         iata={'MPX':'MXP'}.get(iata,iata)
-        if not re.fullmatch(r'[A-Z]{3}',iata) or iata in seen:
-            continue
-        seen.add(iata)
-        rows.append({
-            'iata':iata,
-            'name':str(row.get('name') or '').strip(),
-            'city':str(row.get('municipality') or '').strip(),
-            'country':str(row.get('iso_country') or '').strip().upper(),
-            'keywords':str(row.get('keywords') or '').strip(),
-            'type':str(row.get('type') or '').strip(),
-            'lat':row.get('latitude_deg'),
-            'lon':row.get('longitude_deg')
-        })
+        if not re.fullmatch(r'[A-Z]{3}',iata): continue
+        rows.append({'iata':iata,'name':str(row.get('name') or '').strip(),'city':str(row.get('municipality') or '').strip(),
+                     'country':str(row.get('iso_country') or '').strip().upper(),'keywords':str(row.get('keywords') or '').strip(),
+                     'type':str(row.get('type') or '').strip(),'lat':row.get('latitude_deg'),'lon':row.get('longitude_deg')})
     tmp=AIRPORT_INDEX_FILE.with_suffix('.tmp')
-    tmp.write_text(json.dumps({'source':'OurAirports','index_version':AIRPORT_INDEX_VERSION,
-        'downloaded':datetime.utcnow().isoformat()+'Z','count':len(rows),'airports':rows},
-        ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+    tmp.write_text(json.dumps({'source':'OurAirports','index_version':AIRPORT_INDEX_VERSION,'downloaded':datetime.utcnow().isoformat()+'Z','airports':rows},ensure_ascii=False,separators=(',',':')),encoding='utf-8')
     tmp.replace(AIRPORT_INDEX_FILE)
-    print(f'Airport catalog updated: {len(rows)} airports')
     return rows
 
-_AIRPORT_UPDATE_LOCK=threading.Lock()
-_AIRPORT_UPDATE_RUNNING=False
-
-def _airport_catalog_rows_from_disk():
+def _load_airport_index():
+    rows = []
     try:
         if AIRPORT_INDEX_FILE.exists() and AIRPORT_INDEX_FILE.stat().st_size>1000:
             data=json.loads(AIRPORT_INDEX_FILE.read_text(encoding='utf-8'))
-            if isinstance(data,dict) and isinstance(data.get('airports'),list):
-                return data.get('airports'), data
+            rows=data.get('airports') if isinstance(data,dict) else None
+            version=data.get('index_version') if isinstance(data,dict) else None
+            if version != AIRPORT_INDEX_VERSION:
+                rows = None
     except Exception as e:
         print('Airport index read failed:',e)
-    return None, None
-
-def _airport_update_worker():
-    global _AIRPORT_UPDATE_RUNNING
-    if _AIRPORT_UPDATE_RUNNING:
-        return
-    with _AIRPORT_UPDATE_LOCK:
-        if _AIRPORT_UPDATE_RUNNING:
-            return
-        _AIRPORT_UPDATE_RUNNING=True
-    try:
-        _airport_download_index()
-    except Exception as e:
-        print('Airport catalog background update failed:',e)
-    finally:
-        _AIRPORT_UPDATE_RUNNING=False
-
-def _schedule_airport_update(force=False):
-    rows,meta=_airport_catalog_rows_from_disk()
-    stale=True
-    if rows and AIRPORT_INDEX_FILE.exists():
-        try:
-            stale=(time.time()-AIRPORT_INDEX_FILE.stat().st_mtime) > AIRPORT_INDEX_MAX_AGE
-        except Exception:
-            stale=True
-    if force or not rows or stale or (isinstance(meta,dict) and meta.get('index_version')!=AIRPORT_INDEX_VERSION):
-        threading.Thread(target=_airport_update_worker,daemon=True,name='airport-catalog-updater').start()
-
-def _load_airport_index():
-    rows,meta=_airport_catalog_rows_from_disk()
-    # Never block the flight autocomplete on a remote download. Use the last
-    # good catalog immediately and refresh it in the background when stale.
     if not isinstance(rows,list) or not rows:
-        rows=_static_airport_rows()
-        _schedule_airport_update(force=True)
-        return rows
-    if not isinstance(meta,dict) or meta.get('index_version')!=AIRPORT_INDEX_VERSION:
-        _schedule_airport_update(force=True)
-    else:
-        _schedule_airport_update(force=False)
+        try:
+            rows=_airport_download_index()
+        except Exception as e:
+            print('Airport index download failed; using built-in fallback:',e)
+            rows=[]
+    # Always merge the built-in catalog. Remote data remains useful for the long tail,
+    # while common airports stay available even if the remote dataset is incomplete.
     by_code={str(r.get('iata') or '').upper():r for r in rows if isinstance(r,dict) and r.get('iata')}
     for r in _static_airport_rows():
         by_code.setdefault(r['iata'], r)
     return list(by_code.values())
 
+
 def _airport_query_variants(q):
     base=_fold_search_text(q); variants={base}
     for key,vals in AIRPORT_CITY_ALIASES.items():
         k=_fold_search_text(key)
-        if base==k or k.startswith(base) or base.startswith(k):
+        if base==k or k.startswith(base):
             variants.add(k); variants.update(_fold_search_text(v) for v in vals)
     variants.update(_fold_search_text(v) for v in AIRPORT_METRO_ALIASES.get(base,[]))
     return {v for v in variants if v}
 
 def _airport_score(variants,row):
-    """Score city/name matches; broad keyword substrings are intentionally excluded."""
     city=_fold_search_text(row.get('city')); name=_fold_search_text(row.get('name'))
+    kws=[_fold_search_text(x) for x in str(row.get('keywords') or '').split(',') if _fold_search_text(x)]
+    fields=[(city,125),(name,95)]+[(k,80) for k in kws]
     best=0
-    for v in variants:
-        if not v: continue
-        if city==v: best=max(best,145)
-        elif city.startswith(v) or v.startswith(city): best=max(best,128)
-        elif name==v: best=max(best,120)
-        elif name.startswith(v) or v.startswith(name): best=max(best,108)
-        elif v in city: best=max(best,95)
-        elif v in name: best=max(best,80)
-        else:
-            ratio=difflib.SequenceMatcher(None,v,city).ratio()
-            if ratio>=0.82: best=max(best,90*ratio)
+    query_tokens=set(t for v in variants for t in v.split() if len(t)>=2)
+    for text,weight in fields:
+        if not text: continue
+        for v in variants:
+            if not v: continue
+            if text==v: score=weight+40
+            elif text.startswith(v+' ') or v.startswith(text+' '): score=weight+25
+            elif v in text or text in v: score=weight+12
+            else:
+                ratio=difflib.SequenceMatcher(None,v,text).ratio()
+                score=weight*ratio if ratio>=0.72 else 0
+            best=max(best,score)
+        # Token-level matching makes city names work even when the airport
+        # municipality is a suburb (e.g. Torino -> Caselle Torinese / Turin).
+        text_tokens=set(t for t in text.split() if len(t)>=2)
+        if query_tokens and text_tokens:
+            overlap=query_tokens & text_tokens
+            if overlap:
+                best=max(best,weight+18*len(overlap))
+            for qt in query_tokens:
+                for tt in text_tokens:
+                    ratio=difflib.SequenceMatcher(None,qt,tt).ratio()
+                    if ratio>=0.78:
+                        best=max(best,weight*0.78)
     if row.get('type')=='large_airport': best+=18
     elif row.get('type')=='medium_airport': best+=8
     return best
-
-def _airport_city_candidates(rows, qfold):
-    aliases=set(AIRPORT_CITY_ALIASES.get(qfold, [])) | {qfold}
-    metro=set(AIRPORT_METRO_ALIASES.get(qfold, []))
-    return [r for r in rows if _fold_search_text(r.get('city')) in aliases or _fold_search_text(r.get('city')) in metro]
 
 def airport_place_suggestions(query):
     q=str(query or '').strip()
@@ -1187,50 +1137,60 @@ def airport_place_suggestions(query):
     if re.fullmatch(r'[A-Za-z]{3}',q):
         code=q.upper(); exact=[r for r in rows if r['iata']==code]
         if exact:
-            out=[]
-            for row in exact:
-                out.append({'label':f"{row['iata']} — {row['name']} · {row['city']} · {row['country']}",'name':row['name'],'type':'airport','category':'aeroway','displayType':'✈️ Aeroporto','iata':row['iata'],'lat':as_float(row.get('lat')),'lon':as_float(row.get('lon')),'city':row.get('city',''),'country':row.get('country',''),'score':999})
-            return {'ok':True,'places':out[:10]}
+            return {'ok':True,'places':[{'label':f"{r['iata']} — {r['name']} · {r['city']} · {r['country']}",'name':r['name'],'type':'airport','category':'aeroway','displayType':'✈️ Aeroporto','iata':r['iata'],'lat':as_float(r.get('lat')),'lon':as_float(r.get('lon')),'city':r.get('city',''),'country':r.get('country',''),'score':999} for r in exact[:10]]}
         return {'ok':True,'places':[{'label':f'{code} — Aeroporto (codice IATA)','type':'airport','category':'aeroway','iata':code,'lat':None,'lon':None,'name':f'{code} — Aeroporto','city':'','country':''}]}
 
     qfold=_fold_search_text(q)
-    city_rows=_airport_city_candidates(rows,qfold)
-    if not city_rows:
-        # Typo-tolerant city lock (e.g. 'new yourk' -> 'New York').
-        city_scores=[]
-        aliases=set(AIRPORT_CITY_ALIASES.get(qfold, [])) | {qfold}
-        metro=set(AIRPORT_METRO_ALIASES.get(qfold, []))
-        for row in rows:
-            city=_fold_search_text(row.get('city'))
-            if not city: continue
-            if city in aliases or city in metro:
-                city_scores.append((1000,row)); continue
-            d=difflib.SequenceMatcher(None,qfold,city).ratio()
-            if len(qfold)>=5 and d>=0.84:
-                city_scores.append((d,row))
-        if city_scores:
-            best=max(x[0] for x in city_scores)
-            city_rows=[r for score,r in city_scores if score>=best-0.01]
-    if city_rows:
-        city_rows.sort(key=lambda r:(r.get('type')!='large_airport',r.get('type')!='medium_airport',r.get('iata','')))
-        scored=[(150 if _fold_search_text(r.get('city'))==qfold else 135,r) for r in city_rows]
-    else:
-        variants=_airport_query_variants(q)
-        scored=[]
-        for row in rows:
-            score=_airport_score(variants,row)
-            if score>0: scored.append((score,row))
-        for row in rows:
-            kws=[_fold_search_text(x) for x in str(row.get('keywords') or '').split(',') if _fold_search_text(x)]
-            if qfold in kws: scored.append((100,row))
-    scored.sort(key=lambda z:(-z[0],z[1].get('type')!='large_airport',z[1].get('iata','')))
-    out=[];seen=set()
-    for score,row in scored:
-        if row['iata'] in seen: continue
-        seen.add(row['iata'])
-        out.append({'label':f"{row['iata']} — {row['name']} · {row['city']} · {row['country']}",'name':row['name'],'type':'airport','category':'aeroway','displayType':'✈️ Aeroporto','iata':row['iata'],'lat':as_float(row.get('lat')),'lon':as_float(row.get('lon')),'city':row.get('city',''),'country':row.get('country',''),'score':round(score,2)})
-        if len(out)>=10: break
-    return {'ok':True,'places':out}
+    variants=_airport_query_variants(q)
+    aliases=set(variants)|{qfold}
+    # FIRST: city/metro lock. This is the key rule: once a city is recognized,
+    # do not mix in airports from other countries because of broad keywords.
+    metro_terms=set(_fold_search_text(x) for x in AIRPORT_METRO_ALIASES.get(qfold,[]))
+    city_hits=[]
+    for row in rows:
+        city=_fold_search_text(row.get('city'))
+        score=0
+        if city in aliases: score=1000
+        elif city in metro_terms: score=980
+        elif any(a and (city.startswith(a) or a.startswith(city)) for a in aliases): score=900
+        elif any(a and (city.startswith(a) or a.startswith(city)) for a in metro_terms): score=880
+        else:
+            d=difflib.SequenceMatcher(None,qfold,city).ratio() if qfold and city else 0
+            if max(len(qfold),len(city))>=5 and d>=0.84: score=760+d*20
+        if score: city_hits.append((score,row))
+    if city_hits:
+        best=max(x[0] for x in city_hits)
+        chosen=[x for x in city_hits if x[0]>=best-40]
+        chosen.sort(key=lambda z:(-z[0],z[1].get('type')!='large_airport',z[1].get('iata','')))
+        out=[];seen=set()
+        for score,row in chosen:
+            code=row.get('iata')
+            if code in seen: continue
+            seen.add(code)
+            out.append({'label':f"{code} — {row.get('name','')} · {row.get('city','')} · {row.get('country','')}",'name':row.get('name',''),'type':'airport','category':'aeroway','displayType':'✈️ Aeroporto','iata':code,'lat':as_float(row.get('lat')),'lon':as_float(row.get('lon')),'city':row.get('city',''),'country':row.get('country',''),'score':round(score,2)})
+            if len(out)>=10: break
+        if out:return {'ok':True,'places':out}
+
+    # SECOND: airport name. Keywords are used only as exact phrases, never as
+    # arbitrary substrings, because OurAirports keywords may contain broad terms.
+    name_hits=[]
+    for row in rows:
+        name=_fold_search_text(row.get('name'))
+        if any(a and (name==a or name.startswith(a+' ') or (' '+a+' ') in (' '+name+' ')) for a in aliases):
+            score=800 if name==qfold else 700
+            if row.get('type')=='large_airport':score+=18
+            elif row.get('type')=='medium_airport':score+=8
+            name_hits.append((score,row))
+    if name_hits:
+        name_hits.sort(key=lambda z:(-z[0],z[1].get('iata','')))
+        return {'ok':True,'places':[{'label':f"{r['iata']} — {r['name']} · {r['city']} · {r['country']}",'name':r['name'],'type':'airport','category':'aeroway','displayType':'✈️ Aeroporto','iata':r['iata'],'lat':as_float(r.get('lat')),'lon':as_float(r.get('lon')),'city':r.get('city',''),'country':r.get('country',''),'score':round(sc,2)} for sc,r in name_hits[:10]]}
+
+    keyword_hits=[]
+    for row in rows:
+        kws=[_fold_search_text(x) for x in str(row.get('keywords') or '').split(',') if _fold_search_text(x)]
+        if any(k in aliases for k in kws): keyword_hits.append(row)
+    keyword_hits.sort(key=lambda r:(r.get('type')!='large_airport',r.get('iata','')))
+    return {'ok':True,'places':[{'label':f"{r['iata']} — {r['name']} · {r['city']} · {r['country']}",'name':r['name'],'type':'airport','category':'aeroway','displayType':'✈️ Aeroporto','iata':r['iata'],'lat':as_float(r.get('lat')),'lon':as_float(r.get('lon')),'city':r.get('city',''),'country':r.get('country',''),'score':500} for r in keyword_hits[:10]]}
 
 def car_place_suggestions(query):
     try:return airport_place_suggestions(query)
@@ -1500,17 +1460,6 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 status=int(getattr(e,'http_status',500) or 500)
                 return json_out(self, status, {'ok':False,'error':str(e)})
-        if route == '/api/airport-catalog':
-            rows,meta=_airport_catalog_rows_from_disk()
-            if not isinstance(rows,list) or not rows:
-                rows=_static_airport_rows()
-                ready=False
-            else:
-                ready=True
-            _schedule_airport_update(force=not ready)
-            payload={'ok':True,'ready':ready,'source':'OurAirports','indexVersion':(meta or {}).get('index_version',AIRPORT_INDEX_VERSION),
-                     'downloaded':(meta or {}).get('downloaded'),'count':len(rows),'airports':rows}
-            return json_out(self, 200, payload)
         if route == '/api/planner-data':
             # La fonte persistente per la ripresa tra sessioni è il file esplicito sulla USB.
             source = USB_SAVE_FILE if USB_SAVE_FILE.exists() else PLANNER_DATA_FILE
@@ -1565,7 +1514,6 @@ if __name__ == '__main__':
         except Exception as e:
             print('APIFY_ERROR=' + str(e))
             raise SystemExit(2)
-    _schedule_airport_update(force=False)
     server = ThreadingHTTPServer(('127.0.0.1', PORT), Handler)
     print(f'Travel Work Planner V22.7 USB Portable in ascolto su http://127.0.0.1:{PORT}/')
     print('Token Apify:', 'CONFIGURATO' if APIFY_TOKEN else 'NON CONFIGURATO')
