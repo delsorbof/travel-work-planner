@@ -63,6 +63,40 @@ body{padding-top:0!important}
 <div class="card"><div class="muted"><b>Nota:</b> Skyscanner tramite Apify fornisce itinerari, prezzi, compagnie, scali, durate e segmenti. I prezzi sono indicativi e possono cambiare quando si passa al fornitore; i dati sui bagagli non sono garantiti dal feed e vanno verificati prima dell’acquisto.</div></div>
 </div><div id="busyOverlay" class="busy-overlay hidden" aria-live="assertive" aria-busy="true"><div class="busy-box"><div class="spinner"></div><div class="busy-title">Attendi, ricerca in corso…</div><div id="busyText" class="busy-text">Sto interrogando Skyscanner tramite Apify. Non cliccare nuovamente.</div></div></div><script>
 const $=id=>document.getElementById(id);
+
+// API di ricerca: questa pagina deve chiamare il backend autenticato.
+function formBody(){
+  return {
+    origin:$('origin').value.trim(),
+    destination:$('destination').value.trim(),
+    departure_date:$('departure').value,
+    return_date:$('return').value,
+    passengers:Number($('pax').value)||1,
+    cabin:$('cabin').value||'economy',
+    direct:$('direct').checked,
+    baggage:$('baggage').value||'any',
+    currency:'EUR',
+    market:'IT',
+    locale:'it-IT'
+  };
+}
+async function resolvePlace(id){
+  const input=$(id);
+  const raw=input.value.trim();
+  const stored=(input.dataset.iata||'').trim().toUpperCase();
+  if(stored && /^[A-Z]{3}$/.test(stored)) return stored;
+  if(/^[A-Za-z]{3}$/.test(raw)) return raw.toUpperCase();
+  const arr=localAirportSuggestions(raw);
+  if(arr.length && arr[0].iata) return String(arr[0].iata).toUpperCase();
+  throw new Error(`Impossibile identificare l'aeroporto di ${id==='origin'?'partenza':'arrivo'}. Seleziona un suggerimento o inserisci un codice IATA.`);
+}
+async function apiSearch(body){
+  const r=await fetch('/api/search-flights',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store'});
+  let d=null; try{d=await r.json();}catch(e){}
+  if(!r.ok) throw new Error(d?.error||`Ricerca voli non riuscita (HTTP ${r.status})`);
+  if(!d || d.ok===false) throw new Error(d?.error||'Il servizio voli non ha restituito risultati.');
+  return d;
+}
 const AIRPORT_CACHE_KEY='twp-airports-world-v1';
 const STATIC_AIRPORTS=[
 ['FCO','Roma Fiumicino','Roma','IT'],['CIA','Roma Ciampino','Roma','IT'],['MXP','Milano Malpensa','Milano','IT'],['LIN','Milano Linate','Milano','IT'],['BGY','Bergamo Orio al Serio','Bergamo','IT'],['NAP','Napoli Capodichino','Napoli','IT'],['VCE','Venezia Marco Polo','Venezia','IT'],['BLQ','Bologna Guglielmo Marconi','Bologna','IT'],['TRN','Torino Caselle','Torino','IT'],['FLR','Firenze Peretola','Firenze','IT'],['PRG','Václav Havel Airport Prague','Praga','CZ'],['LHR','London Heathrow','Londra','GB'],['LGW','London Gatwick','Londra','GB'],['CDG','Paris Charles de Gaulle','Parigi','FR'],['ORY','Paris Orly','Parigi','FR'],['MAD','Madrid Barajas','Madrid','ES'],['BCN','Barcelona El Prat','Barcellona','ES'],['AMS','Amsterdam Schiphol','Amsterdam','NL'],['FRA','Frankfurt','Francoforte','DE'],['MUC','Munich','Monaco','DE'],['VIE','Vienna','Vienna','AT'],['ZRH','Zurich','Zurigo','CH'],['BRU','Brussels','Bruxelles','BE'],['LIS','Lisbon','Lisbona','PT'],['ATH','Athens','Atene','GR'],['DUB','Dublin','Dublino','IE'],['IST','Istanbul','Istanbul','TR']

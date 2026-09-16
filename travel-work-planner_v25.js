@@ -1376,7 +1376,17 @@ async function loadData(){
         if(!archive){ const raw=localStorage.getItem(DATA_KEY); archive=raw?normalizeArchive(JSON.parse(raw)):null; }
       }
     }
-    if(!archive){ ensureArchiveFrom(null); persistArchiveLocal(); renderCurrentTrip(); setStatus('Nuovo archivio personale vuoto'); return false; }
+    if(!archive){
+      const id=newTripId();
+      tripArchive={version:2,activeTripId:id,trips:{[id]:blankTrip()}};
+      activeTripId=id;
+      data=tripArchive.trips[id];
+      persistArchiveLocal();
+      renderCurrentTrip();
+      refreshTripSelector();
+      setStatus('Nuovo archivio personale vuoto');
+      return false;
+    }
     tripArchive=archive; activeTripId=tripArchive.activeTripId||Object.keys(tripArchive.trips)[0]; if(!activeTripId){const id=newTripId();tripArchive.trips[id]=blankTrip();activeTripId=id;tripArchive.activeTripId=id;}
     data=tripArchive.trips[activeTripId]||blankTrip();tripArchive.trips[activeTripId]=data; persistArchiveLocal(); renderCurrentTrip(); setStatus(`Dati caricati dal cloud · ${Object.keys(tripArchive.trips).length} viaggio/i`); return true;
   }catch(err){console.error('Errore caricamento dati:',err);alert('Impossibile caricare i dati salvati.\n\n'+(err.message||err));return false;}
