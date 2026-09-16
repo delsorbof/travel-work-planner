@@ -1156,7 +1156,7 @@ def airport_place_suggestions(query):
         elif any(a and (city.startswith(a) or a.startswith(city)) for a in metro_terms): score=880
         else:
             d=difflib.SequenceMatcher(None,qfold,city).ratio() if qfold and city else 0
-            if max(len(qfold),len(city))>=5 and d>=0.84: score=760+d*20
+            if max(len(qfold),len(city))>=5 and d>=0.82: score=760+d*20
         if score: city_hits.append((score,row))
     if city_hits:
         best=max(x[0] for x in city_hits)
