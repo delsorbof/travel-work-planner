@@ -26,7 +26,7 @@ function loadSessionState(){
   catch(e){ console.warn('Sessione Planner non leggibile:',e); return false; }
 }
 function clearPersistentBrowserPlanner(){
-  try{ localStorage.removeItem(DATA_KEY); }catch(e){}
+  try{ localStorage.removeItem(DATA_KEY); localStorage.removeItem(TRIPS_KEY); }catch(e){}
 }
 // Archivio principale portabile nel cloud: il file viene sovrascritto a ogni SALVA.
 // planner-data.json resta come compatibilità tecnica/API; il file nominato è quello da conservare tra sessioni.
@@ -119,7 +119,7 @@ window.twpRestoreAttachments=async function(list){
   for(const f of list){
     if(!f || !f.base64 || !f.id) continue;
     try{
-      await putFile({id:f.id,section:f.section||'global',row:f.row,rowId:f.rowId||null,name:f.name||'allegato.pdf',size:f.size||0,mimeType:f.mimeType||'application/pdf',blob:base64ToBytes(f.base64).buffer});
+      await putFile({id:f.id,tripId:f.tripId||activeTripId,section:f.section||'global',row:f.row,rowId:f.rowId||null,name:f.name||'allegato.pdf',size:f.size||0,mimeType:f.mimeType||'application/pdf',blob:base64ToBytes(f.base64).buffer});
       count++;
     }catch(err){console.warn('Ripristino allegato USB fallito:',f.name,err);}
   }
@@ -233,7 +233,7 @@ async function addRowFiles(id,i,files){
   if(f.type!=='application/pdf'){alert(`"${f.name}" non è un PDF e non verrà allegato.`);continue}
   try{
    const bytes=await f.arrayBuffer();
-   await putFile({id:fileId(id,i),section:id,row:i,rowId:rid,name:f.name,size:f.size,mimeType:'application/pdf',blob:bytes}); count++;
+   await putFile({id:fileId(id,i),tripId:activeTripId,section:id,row:i,rowId:rid,name:f.name,size:f.size,mimeType:'application/pdf',blob:bytes}); count++;
   }catch(err){ console.error('Errore salvataggio allegato:',f.name,err); alert(`Impossibile salvare "${f.name}".\n\n${err.message||err}`); }
  }
  await listRowFiles(id,i); await renderPDFManifest(); setStatus(count?`${count} allegato/i salvato/i`:'Nessun allegato salvato');
@@ -244,7 +244,7 @@ async function addGlobalFiles(files){
   if(f.type!=='application/pdf'){alert(`"${f.name}" non è un PDF e non verrà allegato.`);continue}
   try{
    const bytes=await f.arrayBuffer();
-   await putFile({id:'global_'+fileId('g',-1),section:'global',row:-1,rowId:null,name:f.name,size:f.size,mimeType:'application/pdf',blob:bytes}); count++;
+   await putFile({id:'global_'+fileId('g',-1),tripId:activeTripId,section:'global',row:-1,rowId:null,name:f.name,size:f.size,mimeType:'application/pdf',blob:bytes}); count++;
   }catch(err){ console.error('Errore salvataggio allegato generale:',f.name,err); alert(`Impossibile salvare "${f.name}".\n\n${err.message||err}`); }
  }
  await renderGlobalFiles(); await renderPDFManifest(); setStatus(count?`${count} allegato/i salvato/i`:'Nessun allegato salvato');
@@ -383,7 +383,7 @@ async function getDossierFiles4(){
   const raw=await getFiles(x=>true);
   const seen=new Set(), all=[];
   for(const f of raw){
-    const key=[f.section||'',f.rowId||'',f.row??'',f.name||'',f.size||''].join('|');
+    const key=[f.tripId||'',f.section||'',f.rowId||'',f.row??'',f.name||'',f.size||''].join('|');
     if(seen.has(key)) continue;
     seen.add(key); all.push(f);
   }
@@ -1262,88 +1262,43 @@ async function buildUsbAttachmentManifest(){
     if(blob instanceof Blob) blob=await blob.arrayBuffer();
     if(ArrayBuffer.isView(blob)) blob=blob.buffer;
     if(!(blob instanceof ArrayBuffer)) continue;
-    out.push({id:f.id,section:f.section||'global',row:Number.isFinite(f.row)?f.row:-1,rowId:f.rowId||null,name:f.name||'allegato.pdf',size:f.size||blob.byteLength,mimeType:f.mimeType||'application/pdf',base64:bytesToBase64(new Uint8Array(blob))});
+    out.push({id:f.id,tripId:f.tripId||activeTripId,section:f.section||'global',row:Number.isFinite(f.row)?f.row:-1,rowId:f.rowId||null,name:f.name||'allegato.pdf',size:f.size||blob.byteLength,mimeType:f.mimeType||'application/pdf',base64:bytesToBase64(new Uint8Array(blob))});
   }
   return out;
 }
 async function saveData(show=true){
   try{
     collect();
-    data.sections=data.sections||{};
-    localStorage.setItem(DATA_KEY,JSON.stringify(data));
+    tripArchive=tripArchive||{version:1,activeTripId:activeTripId||newTripId(),trips:{}};
+    if(!activeTripId){activeTripId=tripArchive.activeTripId||newTripId();tripArchive.activeTripId=activeTripId;}
+    tripArchive.trips[activeTripId]=data; tripArchive.activeTripId=activeTripId;
+    persistArchiveLocal();
     const attachments=await buildUsbAttachmentManifest();
-    const payload=JSON.stringify({data,filename:USB_SAVE_FILE,attachments});
+    const payload=JSON.stringify({data:tripArchive,filename:USB_SAVE_FILE,attachments});
     saveChain=saveChain.catch(()=>{}).then(()=>fetch('/api/planner-data',{method:'POST',headers:{'Content-Type':'application/json'},body:payload}).then(async r=>{
       if(!r.ok) throw new Error(`Archivio cloud non raggiungibile (HTTP ${r.status})`);
-      const result=await r.json();
-      if(!result || result.ok!==true) throw new Error('Archivio cloud ha rifiutato il salvataggio');
-      return result;
+      const result=await r.json(); if(!result||result.ok!==true) throw new Error('Archivio cloud ha rifiutato il salvataggio'); return result;
     }));
-    await saveChain;
-    if(show)setStatus(`Dati salvati nel cloud${attachments.length?` · ${attachments.length} allegato/i`:''}`);
-    return true;
-  }catch(err){
-    console.error('Errore salvataggio dati:',err);
-    if(show)setStatus('Dati salvati localmente (backup browser)');
-    return false;
-  }
+    await saveChain; refreshTripSelector(); if(show)setStatus(`Dati salvati nel cloud · ${Object.keys(tripArchive.trips).length} viaggio/i${attachments.length?` · ${attachments.length} allegato/i`:''}`); return true;
+  }catch(err){console.error('Errore salvataggio dati:',err);if(show)setStatus('Dati salvati localmente (backup browser)');return false;}
 }
 async function loadData(){
   try{
-    let parsed=null;
+    let archive=null, restored=[];
     try{
       const r=await fetch('/api/planner-data',{cache:'no-store'});
-      if(r.ok){ const obj=await r.json(); if(obj && obj.ok===false) throw new Error('Archivio cloud ha restituito un errore'); parsed=obj&&obj.data?obj.data:null; if(obj&&Array.isArray(obj.attachments)&&obj.attachments.length){
-        for(const f of obj.attachments){
-          try{ await putFile({id:f.id,section:f.section,row:f.row,rowId:f.rowId,name:f.name,size:f.size,mimeType:f.mimeType||'application/pdf',blob:base64ToBytes(f.base64).buffer}); }catch(err){ console.warn('Ripristino allegato USB fallito:',f.name,err); }
-        }
-      } }
-    }catch(e){ console.warn('Archivio cloud non disponibile, provo il backup del browser.',e); }
-    if(!parsed){
-      const raw=localStorage.getItem(DATA_KEY);
-      if(raw) parsed=JSON.parse(raw);
-    }
-    if(!parsed){
-      data={sections:{},globalFiles:[]};
-      Object.keys(configs).forEach(id=>{ data.sections[id]=[]; });
-      Object.keys(configs).forEach(id=>renderRows(id));
-      // I risultati di ricerca vengono importati esclusivamente quando la pagina
-      // Planner è stata aperta con il relativo parametro (?flight=1, ?hotel=1, ?car=1).
-      document.getElementById('title').value='';
-      document.getElementById('startDate').value='';
-      document.getElementById('endDate').value='';
-      updateHeader();
-      renderGlobalFiles();
-      renderPDFManifest();
-      setStatus('Nuovo modulo vuoto');
-      return false;
-    }
-    data=parsed&&typeof parsed==='object'?parsed:{sections:{},globalFiles:[]};
-    data.sections=data.sections&&typeof data.sections==='object'?data.sections:{};
-    // La sezione TRENI è stata rimossa dal Planner: ignora eventuali dati legacy salvati.
-    delete data.sections.trains;
-    Object.keys(configs).forEach(id=>{
-      data.sections[id]=Array.isArray(data.sections[id])?data.sections[id]:[];
-      renderRows(id);
-    });
-    document.getElementById('title').value=data.title||'';
-    document.getElementById('startDate').value=data.startDate||'';
-    document.getElementById('endDate').value=data.endDate||'';
-    updateHeader();
-    renderGlobalFiles();
-    renderPDFManifest();
-    saveSessionState();
-    setStatus('Dati caricati dal cloud');
-    return true;
-  }catch(err){
-    console.error('Errore caricamento dati:',err);
-    alert('Impossibile caricare i dati salvati.\n\n'+(err.message||err));
-    return false;
-  }
+      if(r.ok){const obj=await r.json();if(obj&&obj.ok===false)throw new Error('Archivio cloud ha restituito un errore'); archive=normalizeArchive(obj&&obj.data?obj.data:null); if(Array.isArray(obj?.attachments)){restored=obj.attachments;for(const f of restored){try{await putFile({id:f.id,tripId:f.tripId||archive.activeTripId,section:f.section,row:f.row,rowId:f.rowId,name:f.name,size:f.size,mimeType:f.mimeType||'application/pdf',blob:base64ToBytes(f.base64).buffer});}catch(err){console.warn('Ripristino allegato fallito:',f.name,err);}}}}
+    }catch(e){console.warn('Archivio cloud non disponibile, provo il backup del browser.',e);}
+    if(!archive) archive=loadArchiveLocal();
+    if(!archive){ const raw=localStorage.getItem(DATA_KEY); archive=raw?normalizeArchive(JSON.parse(raw)):null; }
+    if(!archive){ ensureArchiveFrom(null); persistArchiveLocal(); renderCurrentTrip(); setStatus('Nuovo modulo vuoto'); return false; }
+    tripArchive=archive; activeTripId=tripArchive.activeTripId||Object.keys(tripArchive.trips)[0]; if(!activeTripId){const id=newTripId();tripArchive.trips[id]=blankTrip();activeTripId=id;tripArchive.activeTripId=id;}
+    data=tripArchive.trips[activeTripId]||blankTrip();tripArchive.trips[activeTripId]=data; persistArchiveLocal(); renderCurrentTrip(); setStatus(`Dati caricati dal cloud · ${Object.keys(tripArchive.trips).length} viaggio/i`); return true;
+  }catch(err){console.error('Errore caricamento dati:',err);alert('Impossibile caricare i dati salvati.\n\n'+(err.message||err));return false;}
 }
 async function clearAll(){
  if(!confirm('Cancellare tutti i dati e tutti gli allegati?'))return;
- localStorage.removeItem(DATA_KEY);
+ localStorage.removeItem(DATA_KEY); localStorage.removeItem(TRIPS_KEY);
  sessionStorage.removeItem(SESSION_DATA_KEY);
  localStorage.removeItem(LS_FILES_KEY);
  try{ await fetch('/api/planner-data/clear',{method:'POST'}); }catch(e){ console.warn('Archivio cloud non cancellato:',e); }
