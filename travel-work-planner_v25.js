@@ -1268,7 +1268,7 @@ function normalizeTrip(t){
   Object.keys(configs).forEach(id=>{out.sections[id]=Array.isArray(out.sections[id])?out.sections[id]:[];});
   delete out.sections.trains;
   out.globalFiles=Array.isArray(out.globalFiles)?out.globalFiles:[];
-  out.title=out.title||''; out.startDate=out.startDate||''; out.endDate=out.endDate||'';
+  out.title=out.title||out.name||out.tripName||out.testata||''; out.startDate=out.startDate||''; out.endDate=out.endDate||'';
   return out;
 }
 function normalizeArchive(raw){
@@ -1288,7 +1288,7 @@ function loadArchiveLocal(){try{const raw=localStorage.getItem(TRIPS_KEY);return
 function refreshTripSelector(){
   const sel=document.getElementById('tripSelector'); if(!sel||!tripArchive)return;
   const ids=Object.keys(tripArchive.trips||{}); sel.innerHTML='';
-  ids.forEach(id=>{const t=tripArchive.trips[id]||{};const o=document.createElement('option');o.value=id;o.textContent=(t.title||'Viaggio senza nome')+' · '+id.slice(0,8);sel.appendChild(o);});
+  ids.forEach(id=>{const t=tripArchive.trips[id]||{};const o=document.createElement('option');o.value=id;o.textContent=(t.title||'Viaggio senza nome');o.dataset.tripId=id;sel.appendChild(o);});
   if(activeTripId&&tripArchive.trips[activeTripId])sel.value=activeTripId;
   const del=document.getElementById('deleteTripBtn'); if(del)del.disabled=ids.length<=1;
 }
@@ -1302,7 +1302,10 @@ async function createTrip(){
   collect();
   if(!tripArchive)tripArchive=normalizeArchive(null)||{version:2,activeTripId:null,trips:{}};
   if(activeTripId&&tripArchive.trips[activeTripId])tripArchive.trips[activeTripId]=normalizeTrip(data);
-  const id=newTripId(); tripArchive.trips[id]=blankTrip(); tripArchive.activeTripId=id; activeTripId=id; data=tripArchive.trips[id];
+  const proposed=prompt('Nome del nuovo viaggio:', 'Nuovo viaggio');
+  if(proposed===null)return;
+  const id=newTripId(); const t=blankTrip(); t.title=String(proposed).trim()||'Nuovo viaggio';
+  tripArchive.trips[id]=t; tripArchive.activeTripId=id; activeTripId=id; data=t;
   persistArchiveLocal(); renderCurrentTrip();
   await saveData(true);
 }
