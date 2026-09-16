@@ -150,6 +150,12 @@ body{padding-top:0!important}
 </style>
 <script src="cloud-access.js"></script>
 <link rel="manifest" href="manifest.webmanifest">
+
+<style id="multi-trip-v1">
+.trip-manager{display:grid;grid-template-columns:minmax(220px,1fr) auto auto;gap:10px;align-items:end}
+.trip-manager .field{min-width:0}.trip-manager select{min-height:40px}.trip-note{margin-top:8px;font-size:11px;color:#64748b}
+@media(max-width:700px){.trip-manager{grid-template-columns:1fr}.trip-manager button{width:100%}}
+</style>
 </head>
 <body>
 <nav class="tw-topnav" aria-label="Navigazione principale">
@@ -182,6 +188,16 @@ body{padding-top:0!important}
   <button type="button" class="report-btn" onclick="viewReport()">▣ Visualizza report</button>
   <span id="status"></span>
 </div>
+
+<section class="no-print">
+<h2>I MIEI VIAGGI</h2>
+<div class="trip-manager">
+  <div class="field"><label>Viaggio attivo</label><select id="tripSelector" onchange="switchTrip(this.value)"></select></div>
+  <button type="button" onclick="createTrip()">＋ Nuovo viaggio</button>
+  <button type="button" id="deleteTripBtn" class="danger" onclick="deleteCurrentTrip()">🗑 Elimina viaggio</button>
+</div>
+<div class="trip-note">Ogni viaggio ha dati e allegati completamente separati. L'eliminazione di un viaggio rimuove anche i suoi allegati dal cloud.</div>
+</section>
 
 <section>
 <h2>TESTATA</h2>
