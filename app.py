@@ -1,4 +1,5 @@
-import os, json, base64, re, tempfile, shutil
+import os, json, base64, re, tempfile, shutil, threading, time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 import requests
@@ -32,8 +33,58 @@ ACCESS_PASSWORD = os.environ.get("TWP_ACCESS_PASSWORD", "")
 STORE_ID = os.environ.get("TWP_STORE_ID", "main")
 BUCKET = os.environ.get("TWP_STORAGE_BUCKET", "twp-files")
 
+
+RETENTION_HOURS = max(24, int(os.environ.get('TWP_RETENTION_HOURS','48') or 48))
+CLEANUP_INTERVAL_SECONDS = max(900, int(os.environ.get('TWP_CLEANUP_INTERVAL_SECONDS','3600') or 3600))
+
+def _parse_end_date(value):
+    try:
+        return datetime.strptime(str(value), '%Y-%m-%d').replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+def cleanup_expired_trips():
+    """Remove whole trips (and their cloud attachments) after return + retention hours."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return 0
+    try:
+        row=sb_table_get()
+        if not row: return 0
+        payload=row.get('payload')
+        if not isinstance(payload,dict) or not isinstance(payload.get('trips'),dict): return 0
+        trips=dict(payload.get('trips') or {})
+        now=datetime.now(timezone.utc)
+        expired=[]
+        for tid,trip in trips.items():
+            if not isinstance(trip,dict): continue
+            end=_parse_end_date(trip.get('endDate'))
+            if end and now >= end + timedelta(hours=RETENTION_HOURS): expired.append(tid)
+        if not expired: return 0
+        manifest=row.get('attachments') or []
+        stale_paths=[x.get('storagePath') for x in manifest if isinstance(x,dict) and x.get('tripId') in expired and x.get('storagePath')]
+        sb_remove(stale_paths)
+        new_manifest=[x for x in manifest if not (isinstance(x,dict) and x.get('tripId') in expired)]
+        for tid in expired: trips.pop(tid,None)
+        active=payload.get('activeTripId')
+        if active in expired: active=next(iter(trips),None)
+        new_payload=dict(payload); new_payload['trips']=trips; new_payload['activeTripId']=active
+        sb_table_upsert(new_payload,new_manifest)
+        print(f'TWP cleanup: removed {len(expired)} expired trip(s) and {len(stale_paths)} attachment(s).')
+        return len(expired)
+    except Exception as e:
+        print('TWP cleanup skipped:', e)
+        return 0
+
+def _cleanup_loop():
+    while True:
+        try: cleanup_expired_trips()
+        except Exception as e: print('TWP cleanup loop:', e)
+        time.sleep(CLEANUP_INTERVAL_SECONDS)
+
 app = FastAPI(title="Travel Work Planner V26", version="26.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+threading.Thread(target=_cleanup_loop, name="twp-trip-cleanup", daemon=True).start()
 
 STATIC_EXT = {".html":"text/html; charset=utf-8", ".js":"application/javascript; charset=utf-8", ".css":"text/css; charset=utf-8", ".json":"application/json; charset=utf-8", ".webmanifest":"application/manifest+json", ".svg":"image/svg+xml", ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".png":"image/png", ".ico":"image/x-icon"}
 
