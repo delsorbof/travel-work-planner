@@ -114,32 +114,36 @@ const worldCatalogPromise=loadWorldCatalog();
 function localAirportSuggestions(q){
  const raw=(q||'').trim(), n=normAirport(raw); if(!n)return [];
  const code=raw.toUpperCase();
- const exact=WORLD_AIRPORTS.filter(p=>String(p.iata||'').toUpperCase()===code); if(exact.length)return exact.slice(0,6);
- const rows=WORLD_AIRPORTS.length?WORLD_AIRPORTS:LOCAL_AIRPORTS;
+ const exactIata=WORLD_AIRPORTS.filter(p=>String(p.iata||'').toUpperCase()===code);
+ if(exactIata.length)return exactIata.slice(0,6);
+ const world=WORLD_AIRPORTS.length?WORLD_AIRPORTS:[];
+ const base=LOCAL_AIRPORTS||[];
  const aliases=airportAliases(n);
  const metro=(METRO_CITY_GROUPS[n]||[]).map(normAirport);
- // 1. City/metro lock. If the query matches a city, NEVER mix in airports
- // from unrelated cities just because a keyword contains the search text.
- const city=[];
- for(const p of rows){
-   const c=normAirport(p.city);
-   let score=0;
-   if(aliases.includes(c)) score=1000;
-   else if(metro.includes(c)) score=980;
-   else if(aliases.some(a=>c.startsWith(a)||a.startsWith(c))) score=900;
-   else if(metro.some(a=>c.startsWith(a)||a.startsWith(c))) score=880;
-   else {
-     const d=editDistance(c,n), max=Math.max(c.length,n.length);
-     if(max>=5 && d<=Math.max(1,Math.floor(max*.16))) score=760-d*20;
-   }
-   if(score) city.push([score,p]);
+ const localCity=[];
+ for(const p of base){
+   const c=normAirport(p.city); let score=0;
+   if(aliases.includes(c))score=1100;
+   else if(metro.includes(c))score=1080;
+   else if(aliases.some(a=>c.startsWith(a)||a.startsWith(c)))score=1030;
+   else if(metro.some(a=>c.startsWith(a)||a.startsWith(c)))score=1010;
+   if(score)localCity.push([score,p]);
  }
- if(city.length){const best=Math.max(...city.map(x=>x[0]));return city.filter(x=>x[0]>=best-40).map(x=>x[1]).sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6)}
- // 2. Airport name exact/prefix/contains. No generic keyword substring matching.
- const names=rows.filter(p=>aliases.some(a=>{const name=normAirport(p.name);return name===a||name.startsWith(a+' ')||name.includes(' '+a)}));
+ if(localCity.length)return localCity.sort((a,b)=>b[0]-a[0]||airportRank(b[1])-airportRank(a[1])||String(a[1].iata).localeCompare(String(b[1].iata))).slice(0,6).map(x=>x[1]);
+ const city=[];
+ for(const p of world){
+   const c=normAirport(p.city); let score=0;
+   if(aliases.includes(c))score=1000;
+   else if(metro.includes(c))score=980;
+   else if(aliases.some(a=>c.startsWith(a)||a.startsWith(c)))score=900;
+   else if(metro.some(a=>c.startsWith(a)||a.startsWith(c)))score=880;
+   else { const d=editDistance(c,n), max=Math.max(c.length,n.length); if(max>=5&&d<=Math.max(1,Math.floor(max*.16)))score=760-d*20; }
+   if(score)city.push([score,p]);
+ }
+ if(city.length){const best=Math.max(...city.map(x=>x[0]));return city.filter(x=>x[0]>=best-40).sort((a,b)=>b[0]-a[0]||airportRank(b[1])-airportRank(a[1])||String(a[1].iata).localeCompare(String(b[1].iata))).slice(0,6).map(x=>x[1]);}
+ const names=world.filter(p=>aliases.some(a=>{const name=normAirport(p.name);return name===a||name.startsWith(a+' ')||name.includes(' '+a);}));
  if(names.length)return names.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
- // 3. Exact keyword only, never substring.
- const kws=rows.filter(p=>String(p.keywords||'').split(',').map(normAirport).some(k=>aliases.includes(k)));
+ const kws=world.filter(p=>String(p.keywords||'').split(',').map(normAirport).some(k=>aliases.includes(k)));
  if(kws.length)return kws.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
  return [];
 }
@@ -198,31 +202,24 @@ function setupPicker(id){
 
 async function suggestPlaces(id,q,signal,seq){
  const input=$(id),box=$(id+'Suggestions');
- let arr=[];
- // Give the world catalog a chance to load before deciding that a city is unknown.
- if(!WORLD_CATALOG_READY){ try{ await Promise.race([worldCatalogPromise,new Promise(r=>setTimeout(r,3500))]); }catch(e){} }
- // Per gli aeroporti più comuni rispondi subito dal catalogo locale:
- // niente attesa della rete e niente elenco mondiale non pertinente.
- const local=localAirportSuggestions(q);
- if(local.length){
-   if(input.value.trim()!==q)return;
-   arr=local;
-   box.innerHTML=arr.map((p,i)=>`<div class="suggestion" data-index="${i}" role="option"><b>${esc(p.iata||'')} — ${esc(p.name||'')}</b><span>${esc(p.city||'')} · ${esc(p.country||'')}</span></div>`).join('');
-   box.querySelectorAll('.suggestion').forEach((el,i)=>el._place=arr[i]);
+ // Per l'autocomplete VOLI usiamo una sola fonte: il catalogo aeroporti locale/mondiale.
+ // Non facciamo fallback a /api/place-suggestions, perché quel servizio può restituire
+ // luoghi non pertinenti quando il catalogo è ancora in caricamento.
+ if(!WORLD_CATALOG_READY){
+   try{ await Promise.race([worldCatalogPromise,new Promise(r=>setTimeout(r,6000))]); }catch(e){}
+ }
+ if(input.value.trim()!==q)return;
+ const arr=localAirportSuggestions(q);
+ if(!arr.length){
+   box.innerHTML='<div class="suggestion"><span>Nessun aeroporto trovato. Prova il nome della città o il codice IATA (es. JFK).</span></div>';
    box.classList.remove('hidden');
    return;
  }
- try{
-   const r=await fetch('/api/place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q}),signal});
-   const text=await r.text(); let d={}; try{d=text?JSON.parse(text):{}}catch(_){}
-   if(r.ok) arr=(d.places||[]).slice(0,10);
- }catch(e){ if(e.name==='AbortError')throw e; }
- if(input.value.trim()!==q)return;
- if(!arr.length) arr=localAirportSuggestions(q);
- if(!arr.length){box.innerHTML='<div class="suggestion"><span>Nessuna corrispondenza locale. Puoi comunque inserire un codice IATA.</span></div>';box.classList.remove('hidden');return}
- box.innerHTML=arr.map((p,i)=>`<div class="suggestion" data-index="${i}" role="option"><b>${esc(p.iata||p.cityIata||'')} — ${esc(p.name||p.city||'')}</b><span>${esc(p.city||'')} · ${esc(p.country||'')}</span></div>`).join('');
- box.querySelectorAll('.suggestion').forEach((el,i)=>el._place=arr[i]);box.classList.remove('hidden');
+ box.innerHTML=arr.map((p,i)=>`<div class="suggestion" data-index="${i}" role="option"><b>${esc(p.iata||'')} — ${esc(p.name||'')}</b><span>${esc(p.city||'')} · ${esc(p.country||'')}</span></div>`).join('');
+ box.querySelectorAll('.suggestion').forEach((el,i)=>el._place=arr[i]);
+ box.classList.remove('hidden');
 }
+
 async function resolvePlace(id){
  const input=$(id),q=input.value.trim(),existing=input.dataset.iata||'';
  if(existing&&/^[A-Z]{3}$/.test(existing))return ({MPX:'MXP'}[existing]||existing);
