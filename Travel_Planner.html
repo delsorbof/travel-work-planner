@@ -237,6 +237,23 @@ async function viewReport(){
   location.href='Travel_Report.html';
 }
 (()=>{const f=location.pathname.split(/[\\/]/).pop()||"Home.html";const map={"Home.html":"home","Cerca_Voli_Desktop.html":"voli","Cerca_Hotel_Desktop.html":"hotel","Cerca_Autonoleggio_Desktop.html":"auto","Travel_Planner.html":"planner"};document.querySelector(`.tw-tabs a[data-page="${map[f]||"home"}"]`)?.classList.add("active");})();
-</script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));}</script>
+</script><script>
+// Cloud-first update policy: unregister legacy service workers and clear their Cache API
+// once per browser session. This does not delete planner data stored in localStorage.
+(async()=>{
+  try{
+    const key="twp-cloud-refresh-2026-09-16";
+    if(!sessionStorage.getItem(key)){
+      sessionStorage.setItem(key,"1");
+      if("serviceWorker" in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister()));}
+      if("caches" in window){const keys=await caches.keys();await Promise.all(keys.map(k=>caches.delete(k)));}
+      const u=new URL(location.href);u.searchParams.set("v","cloud-20260916");
+      location.replace(u.toString());
+      return;
+    }
+  }catch(e){}
+  if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js",{updateViaCache:"none"}).catch(()=>{}));}
+})();
+</script>
 </body>
 </html>

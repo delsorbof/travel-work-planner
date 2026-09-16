@@ -237,7 +237,15 @@ def static_files(path:str):
     if not target.exists() or not target.is_file():
         if path=='': target=ROOT/'Home.html'
         else: raise HTTPException(404)
-    return FileResponse(target, media_type=STATIC_EXT.get(target.suffix.lower()))
+    resp = FileResponse(target, media_type=STATIC_EXT.get(target.suffix.lower()))
+    # The web app is cloud-first: always fetch the latest HTML/JS/CSS from Render.
+    # Images may remain cacheable, but executable/app-shell files must never be served stale.
+    ext = target.suffix.lower()
+    if ext in {'.html', '.js', '.css', '.json', '.webmanifest'}:
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        resp.headers['Pragma'] = 'no-cache'
+        resp.headers['Expires'] = '0'
+    return resp
 
 if __name__ == '__main__':
     import uvicorn
