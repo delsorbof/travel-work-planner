@@ -1376,34 +1376,30 @@ async function loadData(){
         if(!archive){ const raw=localStorage.getItem(DATA_KEY); archive=raw?normalizeArchive(JSON.parse(raw)):null; }
       }
     }
-    if(!archive){
-      const id=newTripId();
-      tripArchive={version:2,activeTripId:id,trips:{[id]:blankTrip()}};
-      activeTripId=id;
-      data=tripArchive.trips[id];
-      persistArchiveLocal();
-      renderCurrentTrip();
-      refreshTripSelector();
-      setStatus('Nuovo archivio personale vuoto');
-      return false;
-    }
+    if(!archive){ ensureArchiveFrom(null); persistArchiveLocal(); renderCurrentTrip(); setStatus('Nuovo archivio personale vuoto'); return false; }
     tripArchive=archive; activeTripId=tripArchive.activeTripId||Object.keys(tripArchive.trips)[0]; if(!activeTripId){const id=newTripId();tripArchive.trips[id]=blankTrip();activeTripId=id;tripArchive.activeTripId=id;}
     data=tripArchive.trips[activeTripId]||blankTrip();tripArchive.trips[activeTripId]=data; persistArchiveLocal(); renderCurrentTrip(); setStatus(`Dati caricati dal cloud · ${Object.keys(tripArchive.trips).length} viaggio/i`); return true;
   }catch(err){console.error('Errore caricamento dati:',err);alert('Impossibile caricare i dati salvati.\n\n'+(err.message||err));return false;}
 }
 async function clearAll(){
- if(!confirm('Cancellare tutti i dati e tutti gli allegati?'))return;
- localStorage.removeItem(DATA_KEY); localStorage.removeItem(TRIPS_KEY);
- sessionStorage.removeItem(SESSION_DATA_KEY);
- localStorage.removeItem(LS_FILES_KEY);
- try{ await fetch('/api/planner-data/clear',{method:'POST'}); }catch(e){ console.warn('Archivio cloud non cancellato:',e); }
- try{
-   if(db) db.close();
-   const req=indexedDB.deleteDatabase(DB_NAME);
-   req.onsuccess=()=>location.reload();
-   req.onerror=()=>location.reload();
-   req.onblocked=()=>location.reload();
- }catch(e){ location.reload(); }
+  if(!confirm('Ripulire tutti i campi del viaggio corrente? Il viaggio resterà nell’elenco.'))return;
+  try{
+    // Mantiene il viaggio (ID) ma svuota esclusivamente i suoi campi e le righe.
+    const cleaned=blankTrip();
+    data=cleaned;
+    if(tripArchive && activeTripId){
+      tripArchive.trips[activeTripId]=data;
+      tripArchive.activeTripId=activeTripId;
+    }
+    persistArchiveLocal();
+    renderCurrentTrip();
+    await saveData(true);
+    setStatus('Campi del viaggio ripuliti · il viaggio è rimasto nell’elenco');
+  }catch(e){
+    console.error('Errore nella pulizia dei campi:',e);
+    renderCurrentTrip();
+    setStatus('Impossibile ripulire i campi');
+  }
 }
 function esc(v){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function addAllSamples(){

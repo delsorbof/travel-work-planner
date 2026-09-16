@@ -4,24 +4,24 @@
   const page=(location.pathname.split('/').pop()||'Home.html').toLowerCase();
   const isLogin=page==='login.html';
   const originalFetch=window.fetch.bind(window);
-  window.twpAuthToken=()=>localStorage.getItem(TOKEN_KEY)||'';
-  window.twpSetAuth=(token)=>{if(token)localStorage.setItem(TOKEN_KEY,token);else localStorage.removeItem(TOKEN_KEY)};
-  window.twpLogout=()=>{localStorage.removeItem(TOKEN_KEY);location.href='Login.html'};
+  window.twpAuthToken=()=>sessionStorage.getItem(TOKEN_KEY)||'';
+  window.twpSetAuth=(token)=>{if(token)sessionStorage.setItem(TOKEN_KEY,token);else sessionStorage.removeItem(TOKEN_KEY)};
+  window.twpLogout=()=>{sessionStorage.removeItem(TOKEN_KEY);location.href='Login.html'};
   window.fetch=async function(input,init={}){
     const opts={...init,headers:new Headers(init.headers||{})};
-    const token=localStorage.getItem(TOKEN_KEY);
+    const token=sessionStorage.getItem(TOKEN_KEY);
     if(token) opts.headers.set('Authorization','Bearer '+token);
     const res=await originalFetch(input,opts);
-    if(res.status===401 && !isLogin){localStorage.removeItem(TOKEN_KEY);location.href='Login.html';}
+    if(res.status===401 && !isLogin){sessionStorage.removeItem(TOKEN_KEY);location.href='Login.html';}
     return res;
   };
   if(isLogin)return;
   const guard=async()=>{
-    const token=localStorage.getItem(TOKEN_KEY);
+    const token=sessionStorage.getItem(TOKEN_KEY);
     if(!token){location.replace('Login.html');return;}
     try{
       const r=await originalFetch('/api/auth/me',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
-      if(!r.ok){localStorage.removeItem(TOKEN_KEY);location.replace('Login.html');return;}
+      if(!r.ok){sessionStorage.removeItem(TOKEN_KEY);location.replace('Login.html');return;}
       const d=await r.json();
       document.documentElement.dataset.twpUser=d.username||'';
       const addUserControls=()=>{
@@ -35,7 +35,7 @@
         document.documentElement.dataset.twpUser=d.username||'';
       };
       if(document.body)addUserControls();else window.addEventListener('DOMContentLoaded',addUserControls,{once:true});
-    }catch(e){localStorage.removeItem(TOKEN_KEY);location.replace('Login.html');}
+    }catch(e){sessionStorage.removeItem(TOKEN_KEY);location.replace('Login.html');}
   };
   guard();
 })();
