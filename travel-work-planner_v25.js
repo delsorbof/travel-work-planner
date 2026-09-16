@@ -1366,9 +1366,17 @@ async function loadData(){
       const r=await fetch('/api/planner-data',{cache:'no-store'});
       if(r.ok){const obj=await r.json();if(obj&&obj.ok===false)throw new Error('Archivio cloud ha restituito un errore'); archive=normalizeArchive(obj&&obj.data?obj.data:null); if(Array.isArray(obj?.attachments)){restored=obj.attachments;for(const f of restored){try{await putFile({id:f.id,tripId:f.tripId||archive.activeTripId,section:f.section,row:f.row,rowId:f.rowId,name:f.name,size:f.size,mimeType:f.mimeType||'application/pdf',blob:base64ToBytes(f.base64).buffer});}catch(err){console.warn('Ripristino allegato fallito:',f.name,err);}}}}
     }catch(e){console.warn('Archivio cloud non disponibile, provo il backup del browser.',e);}
-    if(!archive) archive=loadArchiveLocal();
-    if(!archive){ const raw=localStorage.getItem(DATA_KEY); archive=raw?normalizeArchive(JSON.parse(raw)):null; }
-    if(!archive){ ensureArchiveFrom(null); persistArchiveLocal(); renderCurrentTrip(); setStatus('Nuovo modulo vuoto'); return false; }
+    // Sicurezza multiutente: se il cloud risponde correttamente ma non contiene dati
+    // per questo utente, NON usare il localStorage globale, altrimenti un secondo
+    // utente potrebbe vedere l'archivio del primo utente sullo stesso dispositivo.
+    if(!archive){
+      const token = window.twpAuthToken ? window.twpAuthToken() : localStorage.getItem('twp_auth_token_v26') || '';
+      if(!token){
+        archive=loadArchiveLocal();
+        if(!archive){ const raw=localStorage.getItem(DATA_KEY); archive=raw?normalizeArchive(JSON.parse(raw)):null; }
+      }
+    }
+    if(!archive){ ensureArchiveFrom(null); persistArchiveLocal(); renderCurrentTrip(); setStatus('Nuovo archivio personale vuoto'); return false; }
     tripArchive=archive; activeTripId=tripArchive.activeTripId||Object.keys(tripArchive.trips)[0]; if(!activeTripId){const id=newTripId();tripArchive.trips[id]=blankTrip();activeTripId=id;tripArchive.activeTripId=id;}
     data=tripArchive.trips[activeTripId]||blankTrip();tripArchive.trips[activeTripId]=data; persistArchiveLocal(); renderCurrentTrip(); setStatus(`Dati caricati dal cloud · ${Object.keys(tripArchive.trips).length} viaggio/i`); return true;
   }catch(err){console.error('Errore caricamento dati:',err);alert('Impossibile caricare i dati salvati.\n\n'+(err.message||err));return false;}

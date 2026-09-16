@@ -24,13 +24,17 @@
       if(!r.ok){localStorage.removeItem(TOKEN_KEY);location.replace('Login.html');return;}
       const d=await r.json();
       document.documentElement.dataset.twpUser=d.username||'';
-      const addLogout=()=>{
-        if(document.getElementById('twpLogoutBtn'))return;
-        const b=document.createElement('button');b.id='twpLogoutBtn';b.type='button';b.textContent='Esci';
-        b.style.cssText='position:fixed;right:14px;bottom:14px;z-index:99999;border:0;border-radius:10px;padding:9px 13px;background:#17324c;color:#fff;font-weight:700;box-shadow:0 5px 18px #0002;cursor:pointer';
-        b.title='Disconnetti utente';b.onclick=window.twpLogout;document.body.appendChild(b);
+      const addUserControls=()=>{
+        if(document.getElementById('twpUserBadge'))return;
+        const wrap=document.createElement('div'); wrap.id='twpUserBadge';
+        wrap.style.cssText='position:fixed;right:14px;top:14px;z-index:99999;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #d7e2ec;border-radius:12px;padding:7px 9px 7px 11px;box-shadow:0 5px 18px #0002;font:700 13px Segoe UI,Arial,sans-serif;color:#17324c';
+        const label=document.createElement('span'); label.textContent='👤 '+(d.username||'');
+        const b=document.createElement('button'); b.id='twpLogoutBtn'; b.type='button'; b.textContent='Esci';
+        b.style.cssText='border:0;border-radius:8px;padding:6px 9px;background:#17324c;color:#fff;font-weight:700;cursor:pointer';
+        b.title='Disconnetti utente'; b.onclick=window.twpLogout; wrap.append(label,b); document.body.appendChild(wrap);
+        document.documentElement.dataset.twpUser=d.username||'';
       };
-      if(document.body)addLogout();else window.addEventListener('DOMContentLoaded',addLogout,{once:true});
+      if(document.body)addUserControls();else window.addEventListener('DOMContentLoaded',addUserControls,{once:true});
     }catch(e){localStorage.removeItem(TOKEN_KEY);location.replace('Login.html');}
   };
   guard();
