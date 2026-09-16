@@ -64,9 +64,9 @@ body{padding-top:0!important}
 </div><div id="busyOverlay" class="busy-overlay hidden" aria-live="assertive" aria-busy="true"><div class="busy-box"><div class="spinner"></div><div class="busy-title">Attendi, ricerca in corso…</div><div id="busyText" class="busy-text">Sto interrogando Skyscanner tramite Apify. Non cliccare nuovamente.</div></div></div><script>
 const $=id=>document.getElementById(id);
 const LOCAL_AIRPORTS=[
-['FCO','Roma Fiumicino','Roma','IT'],['CIA','Roma Ciampino','Roma','IT'],['MXP','Milano Malpensa','Milano','IT'],['LIN','Milano Linate','Milano','IT'],['BGY','Bergamo Orio al Serio','Bergamo','IT'],['NAP','Napoli Capodichino','Napoli','IT'],['VCE','Venezia Marco Polo','Venezia','IT'],['BLQ','Bologna Guglielmo Marconi','Bologna','IT'],['TRN','Torino Caselle','Torino','IT'],['FLR','Firenze Peretola','Firenze','IT'],['PSA','Pisa Galileo Galilei','Pisa','IT'],['GOA','Genova Cristoforo Colombo','Genova','IT'],['BRI','Bari Karol Wojtyla','Bari','IT'],['CTA','Catania Fontanarossa','Catania','IT'],['PMO','Palermo Falcone Borsellino','Palermo','IT'],['CAG','Cagliari Elmas','Cagliari','IT'],['LHR','London Heathrow','Londra','GB'],['LGW','London Gatwick','Londra','GB'],['CDG','Paris Charles de Gaulle','Parigi','FR'],['ORY','Paris Orly','Parigi','FR'],['MAD','Madrid Barajas','Madrid','ES'],['BCN','Barcelona El Prat','Barcellona','ES'],['AMS','Amsterdam Schiphol','Amsterdam','NL'],['FRA','Frankfurt','Francoforte','DE'],['MUC','Munich','Monaco','DE'],['VIE','Vienna','Vienna','AT'],['ZRH','Zurich','Zurigo','CH'],['BRU','Brussels','Bruxelles','BE'],['LIS','Lisbon','Lisbona','PT'],['ATH','Athens','Atene','GR'],['DUB','Dublin','Dublino','IE'],['IST','Istanbul','Istanbul','TR'],['SYD','Sydney Kingsford Smith','Sydney','AU'],['MEL','Melbourne','Melbourne','AU'],['BNE','Brisbane','Brisbane','AU'],['PER','Perth','Perth','AU'],['NRT','Tokyo Narita','Tokyo','JP'],['HND','Tokyo Haneda','Tokyo','JP'],['KIX','Osaka Kansai','Osaka','JP'],['PEK','Beijing Capital','Beijing','CN'],['PKX','Beijing Daxing','Beijing','CN'],['PVG','Shanghai Pudong','Shanghai','CN'],['DEL','Delhi Indira Gandhi','Delhi','IN'],['BOM','Mumbai Chhatrapati Shivaji','Mumbai','IN'],['SIN','Singapore Changi','Singapore','SG'],['HKG','Hong Kong','Hong Kong','HK'],['ICN','Seoul Incheon','Seoul','KR'],['DXB','Dubai','Dubai','AE']
+['FCO','Roma Fiumicino','Roma','IT'],['CIA','Roma Ciampino','Roma','IT'],['MXP','Milano Malpensa','Milano','IT'],['LIN','Milano Linate','Milano','IT'],['BGY','Bergamo Orio al Serio','Bergamo','IT'],['NAP','Napoli Capodichino','Napoli','IT'],['VCE','Venezia Marco Polo','Venezia','IT'],['BLQ','Bologna Guglielmo Marconi','Bologna','IT'],['TRN','Torino Caselle','Torino','IT'],['FLR','Firenze Peretola','Firenze','IT'],['PSA','Pisa Galileo Galilei','Pisa','IT'],['GOA','Genova Cristoforo Colombo','Genova','IT'],['BRI','Bari Karol Wojtyla','Bari','IT'],['CTA','Catania Fontanarossa','Catania','IT'],['PMO','Palermo Falcone Borsellino','Palermo','IT'],['CAG','Cagliari Elmas','Cagliari','IT'],['LHR','London Heathrow','Londra','GB'],['LGW','London Gatwick','Londra','GB'],['CDG','Paris Charles de Gaulle','Parigi','FR'],['ORY','Paris Orly','Parigi','FR'],['MAD','Madrid Barajas','Madrid','ES'],['BCN','Barcelona El Prat','Barcellona','ES'],['AMS','Amsterdam Schiphol','Amsterdam','NL'],['FRA','Frankfurt','Francoforte','DE'],['MUC','Munich','Monaco','DE'],['VIE','Vienna','Vienna','AT'],['ZRH','Zurich','Zurigo','CH'],['BRU','Brussels','Bruxelles','BE'],['LIS','Lisbon','Lisbona','PT'],['ATH','Athens','Atene','GR'],['DUB','Dublin','Dublino','IE'],['IST','Istanbul','Istanbul','TR'],['SYD','Sydney Kingsford Smith','Sydney','AU'],['MEL','Melbourne','Melbourne','AU'],['BNE','Brisbane','Brisbane','AU'],['PER','Perth','Perth','AU'],['NRT','Tokyo Narita','Tokyo','JP'],['HND','Tokyo Haneda','Tokyo','JP'],['KIX','Osaka Kansai','Osaka','JP'],['PEK','Beijing Capital','Beijing','CN'],['PKX','Beijing Daxing','Beijing','CN'],['PVG','Shanghai Pudong','Shanghai','CN'],['DEL','Delhi Indira Gandhi','Delhi','IN'],['BOM','Mumbai Chhatrapati Shivaji','Mumbai','IN'],['SIN','Singapore Changi','Singapore','SG'],['HKG','Hong Kong','Hong Kong','HK'],['ICN','Seoul Incheon','Seoul','KR'],['DXB','Dubai','Dubai','AE'],['YUL','Montreal Trudeau','Montreal','CA'],['YMX','Montreal Mirabel','Montreal','CA'],['KTW','Katowice Wojciech Korfanty','Katowice','PL'],['WAW','Warsaw Chopin','Warsaw','PL'],['KRK','Krakow John Paul II','Krakow','PL']
 ].map(([iata,name,city,country])=>({iata,name,city,country,type:'large_airport',keywords:''}));
-const AIRPORT_CACHE_KEY='twp-airports-world-v2';
+const AIRPORT_CACHE_KEY='twp-airports-world-v3';
 let WORLD_AIRPORTS=[];
 let WORLD_CATALOG_READY=false;
 const normAirport=v=>String(v||'').toLocaleLowerCase('it').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
@@ -85,7 +85,7 @@ const CITY_SEARCH_ALIASES={
  newyork:['new york','newyork','nyc'],newyorkcity:['new york','newyork','nyc'],nyc:['new york','newyork','nyc'],
  boston:['boston'],chicago:['chicago'],losangeles:['los angeles','losangeles'],sanfrancisco:['san francisco','sanfrancisco'],
  washington:['washington','washington dc','washington d c'],miami:['miami'],atlanta:['atlanta'],dallas:['dallas'],houston:['houston'],seattle:['seattle'],denver:['denver'],philadelphia:['philadelphia'],
- toronto:['toronto'],montreal:['montreal','montreal'],vancouver:['vancouver'],mexicocity:['mexico city','mexicocity','ciudad de mexico'],
+ toronto:['toronto'],montreal:['montreal','montreal','montreal city'],vancouver:['vancouver'],katowice:['katowice','katowice city','pyrzowice'],warsaw:['warsaw','warszawa'],krakow:['krakow','kraków'],mexicocity:['mexico city','mexicocity','ciudad de mexico'],
  tokyo:['tokyo'],osaka:['osaka'],kyoto:['kyoto'],beijing:['beijing','pechino'],pechino:['pechino','beijing'],shanghai:['shanghai'],
  hongkong:['hong kong','hongkong'],singapore:['singapore'],seoul:['seoul'],bangkok:['bangkok'],delhi:['delhi','new delhi'],newdelhi:['new delhi','delhi'],mumbai:['mumbai','bombay'],bombay:['bombay','mumbai'],
  sydney:['sydney'],melbourne:['melbourne'],brisbane:['brisbane'],perth:['perth'],auckland:['auckland'],
@@ -141,8 +141,24 @@ function localAirportSuggestions(q){
    if(score)city.push([score,p]);
  }
  if(city.length){const best=Math.max(...city.map(x=>x[0]));return city.filter(x=>x[0]>=best-40).sort((a,b)=>b[0]-a[0]||airportRank(b[1])-airportRank(a[1])||String(a[1].iata).localeCompare(String(b[1].iata))).slice(0,6).map(x=>x[1]);}
- const names=world.filter(p=>aliases.some(a=>{const name=normAirport(p.name);return name===a||name.startsWith(a+' ')||name.includes(' '+a);}));
+ const names=world.filter(p=>aliases.some(a=>{const name=normAirport(p.name);return name===a||name.startsWith(a+' ')||name.includes(' '+a+' ')||name.includes('-'+a+'-')||name.includes('-'+a+' ');}));
  if(names.length)return names.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
+ // Last resort: fuzzy-match the query against meaningful city/name tokens only.
+ // This catches cases where the airport serves a suburb (e.g. Katowice -> Pyrzowice)
+ // or the official name contains punctuation (e.g. Montréal).
+ const fuzzy=[];
+ for(const p of world){
+   const texts=[normAirport(p.city),normAirport(p.name)];
+   let best=0;
+   for(const text of texts){
+     for(const token of text.split(/\s+/).filter(t=>t.length>=4)){
+       const d=editDistance(n,token), m=Math.max(n.length,token.length);
+       if(m>=5){const ratio=1-d/m;if(ratio>=0.78)best=Math.max(best,ratio);}
+     }
+   }
+   if(best>=0.78)fuzzy.push([best,p]);
+ }
+ if(fuzzy.length){fuzzy.sort((a,b)=>b[0]-a[0]||airportRank(b[1])-airportRank(a[1])||String(a[1].iata).localeCompare(String(b[1].iata)));return fuzzy.slice(0,6).map(x=>x[1]);}
  const kws=world.filter(p=>String(p.keywords||'').split(',').map(normAirport).some(k=>aliases.includes(k)));
  if(kws.length)return kws.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
  return [];

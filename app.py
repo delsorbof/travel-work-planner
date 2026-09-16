@@ -183,6 +183,17 @@ def endpoint(fn):
         return fn(body)
     return inner
 
+@app.get('/api/airport-catalog')
+def airport_catalog(request: Request):
+    check_access(request)
+    rows = core._load_airport_index()
+    # Send only fields needed by the flight autocomplete.
+    airports=[]
+    for r in rows:
+        if not isinstance(r,dict) or not r.get('iata'): continue
+        airports.append({k:r.get(k) for k in ('iata','name','city','country','type','keywords')})
+    return {'ok':True,'ready':True,'indexVersion':getattr(core,'AIRPORT_INDEX_VERSION','world'),'count':len(airports),'downloaded':True,'airports':airports}
+
 @app.post('/api/place-suggestions')
 def place_suggestions(body:dict, request:Request): check_access(request); return core.place_suggestions(body.get('query',''))
 @app.post('/api/search-flights')

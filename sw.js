@@ -1,4 +1,4 @@
-const CACHE='twp-v26-world-autocomplete-v2-typo';
+const CACHE='twp-v26-world-autocomplete-fix-destination-v2';
 const ASSETS=['/Home.html','/Travel_Planner.html','/Travel_Report.html','/Cerca_Voli_Desktop.html','/Cerca_Hotel_Desktop.html','/Cerca_Autonoleggio_Desktop.html','/travel-work-planner_v25.js','/pdf-lib.min.js','/cloud-access.js','/manifest.webmanifest','/home-hero.jpg','/home-flight.jpg','/home-hotel.jpg','/home-car.jpg','/home-planner.jpg'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('twp-v26-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

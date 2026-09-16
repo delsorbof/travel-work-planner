@@ -56,7 +56,7 @@ PLANNER_DATA_FILE = DATA_DIR / 'planner-data.json'
 USB_SAVE_FILE = DATA_DIR / 'Travel_Work_Planner_Salvataggio.json'
 AIRPORT_INDEX_FILE = RUNTIME_DIR / 'airports-iata.json'
 AIRPORT_SOURCE_URL = 'https://davidmegginson.github.io/ourairports-data/airports.csv'
-AIRPORT_INDEX_VERSION = '25.0.47'
+AIRPORT_INDEX_VERSION = '26.0.0-world-global-2'
 
 
 def json_out(h, status, obj):
@@ -1039,7 +1039,14 @@ AIRPORT_METRO_ALIASES = {
     'bruxelles':['brussels','bruxelles'],'vienna':['vienna','wien'],'wien':['vienna','wien'],
     'milan':['milan','milano','bergamo','malpensa','linate'],'milano':['milan','milano','bergamo','malpensa','linate'],
     'rome':['rome','roma','fiumicino','ciampino'],'roma':['rome','roma','fiumicino','ciampino'],
-    'naples':['naples','napoli','capodichino'],'napoli':['naples','napoli','capodichino']
+    'naples':['naples','napoli','capodichino'],'napoli':['naples','napoli','capodichino'],
+    'montreal':['montreal','montreal west','dorval'],'montreal city':['montreal','montreal west','dorval'],
+    'katowice':['katowice','ozarowice','pyrzowice'],
+    'budapest':['budapest','vecses'],'warsaw':['warsaw','warszawa'],'krakow':['krakow','balice'],
+    'vancouver':['vancouver','richmond'],'toronto':['toronto','mississauga'],
+    'bangalore':['bangalore','bengaluru'],'guangzhou':['guangzhou','canton'],
+    'shenzhen':['shenzhen'],'chengdu':['chengdu'],'kuala lumpur':['kuala lumpur','sepang'],
+    'manila':['manila','pasay'],'jakarta':['jakarta']
 }
 
 def _airport_download_index():
@@ -1184,6 +1191,22 @@ def airport_place_suggestions(query):
     if name_hits:
         name_hits.sort(key=lambda z:(-z[0],z[1].get('iata','')))
         return {'ok':True,'places':[{'label':f"{r['iata']} — {r['name']} · {r['city']} · {r['country']}",'name':r['name'],'type':'airport','category':'aeroway','displayType':'✈️ Aeroporto','iata':r['iata'],'lat':as_float(r.get('lat')),'lon':as_float(r.get('lon')),'city':r.get('city',''),'country':r.get('country',''),'score':round(sc,2)} for sc,r in name_hits[:10]]}
+
+    # Last resort: fuzzy-match the query against city/name tokens. This covers
+    # airports whose municipality is a suburb (Katowice -> Pyrzowice) and
+    # punctuation/diacritic variants without using broad keyword substrings.
+    fuzzy_hits=[]
+    for row in rows:
+        best=0.0
+        for text in (_fold_search_text(row.get('city')), _fold_search_text(row.get('name'))):
+            for tok in text.split():
+                if len(tok)<4 or len(qfold)<4: continue
+                ratio=difflib.SequenceMatcher(None,qfold,tok).ratio()
+                if ratio>=0.78: best=max(best,ratio)
+        if best>=0.78: fuzzy_hits.append((best,row))
+    if fuzzy_hits:
+        fuzzy_hits.sort(key=lambda z:(-z[0],z[1].get('type')!='large_airport',z[1].get('iata','')))
+        return {'ok':True,'places':[{'label':f"{r['iata']} — {r['name']} · {r['city']} · {r['country']}",'name':r['name'],'type':'airport','category':'aeroway','displayType':'✈️ Aeroporto','iata':r['iata'],'lat':as_float(r.get('lat')),'lon':as_float(r.get('lon')),'city':r.get('city',''),'country':r.get('country',''),'score':round(sc*100,2)} for sc,r in fuzzy_hits[:10]]}
 
     keyword_hits=[]
     for row in rows:
