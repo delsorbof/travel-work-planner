@@ -189,7 +189,7 @@ def load_cloud():
         if not isinstance(item,dict) or not item.get('storagePath'): continue
         try:
             raw=sb_download(item['storagePath'])
-            attachments.append({k:item.get(k) for k in ['id','section','row','rowId','name','size','mimeType']} | {'base64':base64.b64encode(raw).decode('ascii')})
+            attachments.append({k:item.get(k) for k in ['id','tripId','section','row','rowId','name','size','mimeType']} | {'base64':base64.b64encode(raw).decode('ascii')})
         except Exception as e:
             print('Attachment restore skipped:', e)
     return {"ok":True,"data":payload,"attachments":attachments}

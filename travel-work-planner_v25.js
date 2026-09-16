@@ -1251,6 +1251,80 @@ function importPendingFlight(){
     return importedCount>0;
   }catch(e){console.warn('Importazione volo selezionato fallita',e);return false;}
 }
+
+
+// ===== GESTIONE MULTI-VIAGGIO =====
+const TRIPS_KEY='TravelWorkPlanner_Trips_v1';
+let tripArchive=null;
+let activeTripId=null;
+function newTripId(){return (window.crypto&&typeof crypto.randomUUID==='function')?crypto.randomUUID():('trip_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));}
+function blankTrip(){
+  const sections={}; Object.keys(configs).forEach(id=>sections[id]=[]);
+  return {title:'',startDate:'',endDate:'',sections,globalFiles:[]};
+}
+function normalizeTrip(t){
+  const out=(t&&typeof t==='object')?JSON.parse(JSON.stringify(t)):blankTrip();
+  out.sections=out.sections&&typeof out.sections==='object'?out.sections:{};
+  Object.keys(configs).forEach(id=>{out.sections[id]=Array.isArray(out.sections[id])?out.sections[id]:[];});
+  delete out.sections.trains;
+  out.globalFiles=Array.isArray(out.globalFiles)?out.globalFiles:[];
+  out.title=out.title||''; out.startDate=out.startDate||''; out.endDate=out.endDate||'';
+  return out;
+}
+function normalizeArchive(raw){
+  if(!raw||typeof raw!=='object')return null;
+  if(raw.trips&&typeof raw.trips==='object'){
+    const trips={}; Object.entries(raw.trips).forEach(([id,t])=>{trips[id]=normalizeTrip(t);});
+    const ids=Object.keys(trips); if(!ids.length)return null;
+    const active=raw.activeTripId&&trips[raw.activeTripId]?raw.activeTripId:ids[0];
+    return {version:2,activeTripId:active,trips};
+  }
+  // Compatibilità con il vecchio archivio a viaggio singolo.
+  if(raw.sections||raw.title||raw.startDate||raw.endDate){const id=newTripId();return {version:2,activeTripId:id,trips:{[id]:normalizeTrip(raw)}};}
+  return null;
+}
+function persistArchiveLocal(){try{if(tripArchive)localStorage.setItem(TRIPS_KEY,JSON.stringify(tripArchive));}catch(e){console.warn('Archivio viaggi locale non salvato:',e)}}
+function loadArchiveLocal(){try{const raw=localStorage.getItem(TRIPS_KEY);return raw?normalizeArchive(JSON.parse(raw)):null}catch(e){return null}}
+function refreshTripSelector(){
+  const sel=document.getElementById('tripSelector'); if(!sel||!tripArchive)return;
+  const ids=Object.keys(tripArchive.trips||{}); sel.innerHTML='';
+  ids.forEach(id=>{const t=tripArchive.trips[id]||{};const o=document.createElement('option');o.value=id;o.textContent=(t.title||'Viaggio senza nome')+' · '+id.slice(0,8);sel.appendChild(o);});
+  if(activeTripId&&tripArchive.trips[activeTripId])sel.value=activeTripId;
+  const del=document.getElementById('deleteTripBtn'); if(del)del.disabled=ids.length<=1;
+}
+function renderCurrentTrip(){
+  if(!data)return; Object.keys(configs).forEach(id=>{data.sections[id]=Array.isArray(data.sections[id])?data.sections[id]:[];renderRows(id);});
+  const title=document.getElementById('title'), start=document.getElementById('startDate'), end=document.getElementById('endDate');
+  if(title)title.value=data.title||''; if(start)start.value=data.startDate||''; if(end)end.value=data.endDate||'';
+  updateHeader(); renderGlobalFiles(); renderPDFManifest(); refreshTripSelector();
+}
+async function createTrip(){
+  collect();
+  if(!tripArchive)tripArchive=normalizeArchive(null)||{version:2,activeTripId:null,trips:{}};
+  if(activeTripId&&tripArchive.trips[activeTripId])tripArchive.trips[activeTripId]=normalizeTrip(data);
+  const id=newTripId(); tripArchive.trips[id]=blankTrip(); tripArchive.activeTripId=id; activeTripId=id; data=tripArchive.trips[id];
+  persistArchiveLocal(); renderCurrentTrip();
+  await saveData(true);
+}
+async function switchTrip(id){
+  if(!tripArchive||!tripArchive.trips[id]||id===activeTripId)return;
+  collect(); if(activeTripId&&tripArchive.trips[activeTripId])tripArchive.trips[activeTripId]=normalizeTrip(data);
+  activeTripId=id; tripArchive.activeTripId=id; data=tripArchive.trips[id]; persistArchiveLocal(); renderCurrentTrip();
+  await saveData(true);
+}
+async function deleteCurrentTrip(){
+  if(!tripArchive||!activeTripId)return;
+  const ids=Object.keys(tripArchive.trips||{}); if(ids.length<=1){setStatus('Deve esistere almeno un viaggio');return;}
+  const title=tripArchive.trips[activeTripId]?.title||'Viaggio senza nome';
+  if(!confirm(`Eliminare definitivamente "${title}" e i suoi allegati dal cloud?`))return;
+  try{
+    const files=await getFiles(x=>(x.tripId||activeTripId)===activeTripId);
+    for(const f of files){try{await deleteFile(f.id)}catch(e){}}
+  }catch(e){}
+  delete tripArchive.trips[activeTripId]; activeTripId=Object.keys(tripArchive.trips)[0]; tripArchive.activeTripId=activeTripId; data=tripArchive.trips[activeTripId];
+  persistArchiveLocal(); renderCurrentTrip(); await saveData(true);
+}
+
 function setStatus(t){const s=document.getElementById('status');if(!s)return;s.textContent=t;setTimeout(()=>{if(s)s.textContent=''},1800)}
 function collect(){data.title=document.getElementById('title').value;data.startDate=document.getElementById('startDate').value;data.endDate=document.getElementById('endDate').value}
 let saveChain=Promise.resolve();
@@ -1353,22 +1427,22 @@ window.twpReady=(async function(){
    // All'avvio non si carica mai l'archivio USB. Si ripristina soltanto la memoria
    // della sessione, così la navigazione tra Voli/Hotel/Auto non perde il lavoro corrente.
    try{ await new Promise((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).clear();tx.oncomplete=res;tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error);}); }catch(e){ console.warn('Pulizia allegati di avvio:',e); }
-   const hadSession=loadSessionState();
-   if(hadSession){ Object.keys(configs).forEach(id=>renderRows(id)); document.getElementById('title').value=data.title||''; document.getElementById('startDate').value=data.startDate||''; document.getElementById('endDate').value=data.endDate||''; updateHeader(); renderGlobalFiles(); renderPDFManifest(); }
-   else { updateHeader(); renderPDFManifest(); }
+   const loaded=await loadData();
+   if(!loaded){ refreshTripSelector(); updateHeader(); renderGlobalFiles(); renderPDFManifest(); }
    const importedOnEntry=await importSearchQueueOnEntry();
-   if(!importedOnEntry)setStatus('Pronto — planner vuoto');
+   if(importedOnEntry) await saveData(false);
+   if(!loaded&&!importedOnEntry)setStatus('Pronto — planner vuoto');
    data._ready=true;
    window.dispatchEvent(new CustomEvent('twp-data-ready'));
  }catch(err){
    console.warn('IndexedDB non disponibile: attivo archivio locale alternativo.',err);
    storageMode='localStorage';
    // Anche nel fallback si ripristina soltanto la sessione corrente, mai il salvataggio USB.
-   const hadSession=loadSessionState();
-   if(hadSession){ Object.keys(configs).forEach(id=>renderRows(id)); document.getElementById('title').value=data.title||''; document.getElementById('startDate').value=data.startDate||''; document.getElementById('endDate').value=data.endDate||''; updateHeader(); renderGlobalFiles(); renderPDFManifest(); }
-   else { updateHeader(); renderGlobalFiles(); renderPDFManifest(); }
+   const loaded=await loadData();
+   if(!loaded){ refreshTripSelector(); updateHeader(); renderGlobalFiles(); renderPDFManifest(); }
    const importedOnEntry=await importSearchQueueOnEntry();
-   if(!importedOnEntry)setStatus('Pronto — planner vuoto');
+   if(importedOnEntry) await saveData(false);
+   if(!loaded&&!importedOnEntry)setStatus('Pronto — planner vuoto');
    data._ready=true;
    window.dispatchEvent(new CustomEvent('twp-data-ready'));
  }
