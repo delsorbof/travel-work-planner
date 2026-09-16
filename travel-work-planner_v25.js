@@ -1468,8 +1468,11 @@ window.twpReady=(async function(){
    const hadSession=loadSessionState();
    if(hadSession){ Object.keys(configs).forEach(id=>renderRows(id)); document.getElementById('title').value=data.title||''; document.getElementById('startDate').value=data.startDate||''; document.getElementById('endDate').value=data.endDate||''; updateHeader(); renderGlobalFiles(); renderPDFManifest(); }
    else { updateHeader(); renderPDFManifest(); }
+   // Al primo caricamento della pagina il cloud deve essere la fonte persistente.
+   // La sessione serve solo per i passaggi tra le varie pagine dell'app.
+   await loadData();
    const importedOnEntry=await importSearchQueueOnEntry();
-   if(!importedOnEntry)setStatus('Pronto — planner vuoto');
+   if(!importedOnEntry && !tripArchive)setStatus('Pronto — planner vuoto');
    data._ready=true;
    window.dispatchEvent(new CustomEvent('twp-data-ready'));
  }catch(err){
@@ -1479,8 +1482,11 @@ window.twpReady=(async function(){
    const hadSession=loadSessionState();
    if(hadSession){ Object.keys(configs).forEach(id=>renderRows(id)); document.getElementById('title').value=data.title||''; document.getElementById('startDate').value=data.startDate||''; document.getElementById('endDate').value=data.endDate||''; updateHeader(); renderGlobalFiles(); renderPDFManifest(); }
    else { updateHeader(); renderGlobalFiles(); renderPDFManifest(); }
+   // Al primo caricamento della pagina il cloud deve essere la fonte persistente.
+   // La sessione serve solo per i passaggi tra le varie pagine dell'app.
+   await loadData();
    const importedOnEntry=await importSearchQueueOnEntry();
-   if(!importedOnEntry)setStatus('Pronto — planner vuoto');
+   if(!importedOnEntry && !tripArchive)setStatus('Pronto — planner vuoto');
    data._ready=true;
    window.dispatchEvent(new CustomEvent('twp-data-ready'));
  }
