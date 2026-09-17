@@ -25,6 +25,7 @@
 <section class="card map-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 style="margin-bottom:0">Mappa dell’itinerario</h2><span class="small">Aeroporti e luoghi del planning</span></div><div id="reportMap" class="report-map"><div class="empty">Generazione mappa…</div></div></section>
 <div class="summary"><section class="card"><h2>Itinerario</h2><div id="timeline" class="timeline"></div></section><section class="card"><h2>Riepilogo economico</h2><div id="money"></div><div class="report-photo"></div><div class="photo-caption" id="photoCaption">Travel Work Planner · sintesi del viaggio</div></section></div>
 <section class="card details"><h2>Dettagli del planning</h2><div class="details-grid"><div id="flightDetails"></div><div id="hotelDetails"></div><div id="carDetails"></div><div id="extraDetails"></div></div></section>
+<section class="card details"><h2>Dettagli completi del planning</h2><div id="allDetails" class="details-grid"></div></section>
 <section class="card details"><h2>Allegati del planning</h2><div id="reportAttachments" class="empty">Nessun allegato PDF.</div><div class="small" style="margin-top:8px;color:#607b96">Gli allegati PDF verranno incorporati nel documento quando premi “ESPORTA PDF”.</div></section>
 <div class="footer"><span>Travel Work Planner</span><span id="footerVersion">Travel Report</span></div>
 </main>
@@ -107,6 +108,20 @@ async function renderReport(){
  document.getElementById('hotelDetails').innerHTML=list('Hotel',hotels,h=>`${escR(h.nome||'Hotel')} · ${escR(fmtDate(h.checkin)||'—')} → ${escR(fmtDate(h.checkout)||'—')}`);
  document.getElementById('carDetails').innerHTML=list('Autonoleggio',cars,c=>`${escR(fmtDate(c.prelievoData)||'—')} → ${escR(fmtDate(c.riconsegnaData)||'—')}`);
  document.getElementById('extraDetails').innerHTML=list('Servizi extra',restaurants.concat(places),x=>escR(x.nome||'Voce'));
+ const detailDefs={
+   travelers:['VIAGGIATORI',['nome','cognome','ruolo','email','telefono']],
+   flights:['VOLI',['tipoVolo','compagnia','numeroVolo','pnr','partenza','arrivo','dataPartenza','oraPartenza','dataArrivo','oraArrivo','zaino','cabina','stiva','priority']],
+   hotels:['HOTEL',['nome','piattaforma','pnr','checkin','checkout','indirizzo','maps']],
+   cars:['AUTONOLEGGIO',['pnr','prelievoData','prelievoOra','riconsegnaData','riconsegnaOra','note']],
+   agenda:['AGENDA',['data','ora','descrizione','luogo','note']],
+   restaurants:['RISTORANTI CONSIGLIATI',['nome','indirizzo','maps','note']],
+   places:['LUOGHI DA VISITARE CONSIGLIATI',['nome','indirizzo','maps','note']],
+   budget:['BUDGET VIAGGIO',['categoria','descrizione','costo','perViaggiatore','viaggiatori','sostenuta']]
+ };
+ const labels={nome:'Nome',cognome:'Cognome',ruolo:'Ruolo',email:'Email',telefono:'Telefono',tipoVolo:'Tipo',compagnia:'Compagnia',numeroVolo:'Numero volo',pnr:'PNR',partenza:'Partenza',arrivo:'Arrivo',dataPartenza:'Data partenza',oraPartenza:'Ora partenza',dataArrivo:'Data arrivo',oraArrivo:'Ora arrivo',zaino:'Zaino cabina',cabina:'Bagaglio cabina',stiva:'Bagaglio stiva',priority:'Priority',piattaforma:'Piattaforma',checkin:'Check-in',checkout:'Check-out',indirizzo:'Indirizzo',maps:'Google Maps',prelievoData:'Data prelievo',prelievoOra:'Ora prelievo',riconsegnaData:'Data riconsegna',riconsegnaOra:'Ora riconsegna',note:'Note',data:'Data',ora:'Ora',descrizione:'Descrizione',categoria:'Categoria',costo:'Costo',perViaggiatore:'Per viaggiatore',viaggiatori:'N. viaggiatori',sostenuta:'Già sostenuta'};
+ const fmtDetail=(k,v)=>{if(v===true)return 'Sì';if(v===false)return 'No';if(v==null||v==='')return '—';if(/data|checkin|checkout/i.test(k)&&/^\d{4}-\d{2}-\d{2}$/.test(String(v)))return fmtDate(v);return String(v)};
+ document.getElementById('allDetails').innerHTML=Object.entries(detailDefs).map(([id,[title,fields]])=>{const arr=rows(id);if(!arr.length)return `<div><b>${escR(title)}</b><div class="empty">Nessun dato</div></div>`;return `<div><b>${escR(title)}</b>${arr.map((r,i)=>`<div style="margin-top:8px;padding:10px;border:1px solid #edf2f6;border-radius:10px"><strong>${escR(r.nome||r.descrizione||r.partenza&&r.arrivo?`${r.partenza||'—'} → ${r.arrivo||'—'}`:`${title} ${i+1}`)}</strong><div class="small" style="margin-top:6px">${fields.map(k=>`<span style="display:inline-block;margin:2px 8px 2px 0"><b>${escR(labels[k]||k)}:</b> ${escR(fmtDetail(k,r[k]))}</span>`).join('')}</div></div>`).join('')}</div>`}).join('');
+
  try{
    if(window.twpReady) await window.twpReady;
    const files=window.getDossierFiles4?await window.getDossierFiles4():[];
