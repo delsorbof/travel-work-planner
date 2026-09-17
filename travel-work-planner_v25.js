@@ -1384,8 +1384,13 @@ async function loadData(){
 async function clearAll(){
   if(!confirm('Ripulire tutti i campi del viaggio corrente? Il viaggio resterà nell’elenco.'))return;
   try{
-    // Mantiene il viaggio (ID) ma svuota esclusivamente i suoi campi e le righe.
+    // Mantiene il viaggio (ID), il nome del viaggio e gli allegati,
+    // ma svuota esclusivamente i campi, le date e le righe del viaggio.
+    const preservedTitle = data?.title || '';
+    const preservedFiles = Array.isArray(data?.globalFiles) ? data.globalFiles : [];
     const cleaned=blankTrip();
+    cleaned.title = preservedTitle;
+    cleaned.globalFiles = preservedFiles;
     data=cleaned;
     if(tripArchive && activeTripId){
       tripArchive.trips[activeTripId]=data;
