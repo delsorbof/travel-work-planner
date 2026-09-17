@@ -30,7 +30,29 @@
 <div class="footer"><span>Travel Work Planner</span><span id="footerVersion">Travel Report</span></div>
 </main>
 <div id="plannerBridge"><input id="title"><input id="startDate"><input id="endDate"><span id="status"></span><div id="docTitle"></div><div id="docDates"></div><div id="sections"></div><div id="globalFileList"></div><div id="pdfAttachmentManifest"></div></div>
-<script src="pdf-lib.min.js"></script><script src="travel-work-planner_v25.js"></script>
+<script>
+async function ensurePdfLibLoaded(){
+  if(window.PDFLib && window.PDFLib.PDFDocument) return true;
+  const urls=[
+    'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js',
+    'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js'
+  ];
+  for(const src of urls){
+    try{
+      await new Promise((resolve,reject)=>{
+        const s=document.createElement('script');
+        s.src=src;
+        s.onload=resolve;
+        s.onerror=reject;
+        document.head.appendChild(s);
+      });
+      if(window.PDFLib && window.PDFLib.PDFDocument) return true;
+    }catch(e){ console.warn('Caricamento PDF fallito:',src,e); }
+  }
+  return false;
+}
+</script>
+<script src="travel-work-planner_v25.js"></script>
 <script>
 const escR=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const fmtDate=x=>{if(!x)return '';const [y,m,d]=String(x).split('-');return d&&m&&y?`${d}/${m}/${y}`:x};
@@ -38,6 +60,10 @@ const euro=v=>new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'}).f
 function getData(){return window.twpGetData?window.twpGetData():null}
 function rows(id){const d=getData();return d?.sections?.[id]||[]}
 async function loadReportData(){
+  // Attende che travel-work-planner.js abbia finito il caricamento cloud.
+  // Poi ripristina la memoria della pagina Planner, che identifica il viaggio
+  // appena aperto anche quando l'archivio cloud ha un altro activeTripId.
+  try{ if(window.twpReady) await window.twpReady; }catch(e){ console.warn('Report: inizializzazione Planner non disponibile:',e); }
   let parsed=null;
   // Se il Report è aperto dalla sessione corrente, usa prima quella memoria:
   // così non sovrascrive il lavoro corrente con un vecchio salvataggio USB.
@@ -118,9 +144,47 @@ async function renderReport(){
    places:['LUOGHI DA VISITARE CONSIGLIATI',['nome','indirizzo','maps','note']],
    budget:['BUDGET VIAGGIO',['categoria','descrizione','costo','perViaggiatore','viaggiatori','sostenuta']]
  };
- const labels={nome:'Nome',cognome:'Cognome',ruolo:'Ruolo',email:'Email',telefono:'Telefono',tipoVolo:'Tipo',compagnia:'Compagnia',numeroVolo:'Numero volo',pnr:'PNR',partenza:'Partenza',arrivo:'Arrivo',dataPartenza:'Data partenza',oraPartenza:'Ora partenza',dataArrivo:'Data arrivo',oraArrivo:'Ora arrivo',zaino:'Zaino cabina',cabina:'Bagaglio cabina',stiva:'Bagaglio stiva',priority:'Priority',piattaforma:'Piattaforma',checkin:'Check-in',checkout:'Check-out',indirizzo:'Indirizzo',maps:'Google Maps',prelievoData:'Data prelievo',prelievoOra:'Ora prelievo',riconsegnaData:'Data riconsegna',riconsegnaOra:'Ora riconsegna',note:'Note',data:'Data',ora:'Ora',descrizione:'Descrizione',categoria:'Categoria',costo:'Costo',perViaggiatore:'Per viaggiatore',viaggiatori:'N. viaggiatori',sostenuta:'Già sostenuta'};
- const fmtDetail=(k,v)=>{if(v===true)return 'Sì';if(v===false)return 'No';if(v==null||v==='')return '—';if(/data|checkin|checkout/i.test(k)&&/^\d{4}-\d{2}-\d{2}$/.test(String(v)))return fmtDate(v);return String(v)};
- document.getElementById('allDetails').innerHTML=Object.entries(detailDefs).map(([id,[title,fields]])=>{const arr=rows(id);if(!arr.length)return `<div><b>${escR(title)}</b><div class="empty">Nessun dato</div></div>`;return `<div><b>${escR(title)}</b>${arr.map((r,i)=>`<div style="margin-top:8px;padding:10px;border:1px solid #edf2f6;border-radius:10px"><strong>${escR(r.nome||r.descrizione||r.partenza&&r.arrivo?`${r.partenza||'—'} → ${r.arrivo||'—'}`:`${title} ${i+1}`)}</strong><div class="small" style="margin-top:6px">${fields.map(k=>`<span style="display:inline-block;margin:2px 8px 2px 0"><b>${escR(labels[k]||k)}:</b> ${escR(fmtDetail(k,r[k]))}</span>`).join('')}</div></div>`).join('')}</div>`}).join('');
+ const fmtDetail=(k,v)=>{
+   if(v===true)return 'Sì';
+   if(v===false)return 'No';
+   if(v==null||v==='')return '—';
+   if(/data|checkin|checkout|prelievoData|riconsegnaData/i.test(k)&&/^\d{4}-\d{2}-\d{2}$/.test(String(v)))return fmtDate(v);
+   if(Array.isArray(v))return v.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(', ');
+   if(typeof v==='object')return JSON.stringify(v);
+   return String(v);
+ };
+ const labels={
+   nome:'Nome',cognome:'Cognome',ruolo:'Ruolo',email:'Email',telefono:'Telefono',
+   tipoVolo:'Tipo',compagnia:'Compagnia',numeroVolo:'Numero volo',pnr:'PNR',
+   partenza:'Partenza',arrivo:'Arrivo',dataPartenza:'Data partenza',oraPartenza:'Ora partenza',
+   dataArrivo:'Data arrivo',oraArrivo:'Ora arrivo',zaino:'Zaino cabina',cabina:'Bagaglio cabina',
+   stiva:'Bagaglio stiva',priority:'Priority',piattaforma:'Piattaforma',checkin:'Check-in',
+   checkout:'Check-out',indirizzo:'Indirizzo',maps:'Google Maps',prelievoData:'Data prelievo',
+   prelievoOra:'Ora prelievo',riconsegnaData:'Data riconsegna',riconsegnaOra:'Ora riconsegna',
+   note:'Note',data:'Data',ora:'Ora',descrizione:'Descrizione',categoria:'Categoria',
+   costo:'Costo',perViaggiatore:'Per viaggiatore',viaggiatori:'N. viaggiatori',
+   sostenuta:'Già sostenuta',valuta:'Valuta',prezzoTotale:'Prezzo totale',
+   prezzoPerPasseggero:'Prezzo per passeggero',statoPrezzo:'Stato prezzo'
+ };
+ const titleField=(title,r,i)=>{
+   if(r.nome||r.cognome)return [r.nome,r.cognome].filter(Boolean).join(' ');
+   if(r.descrizione)return r.descrizione;
+   if(r.partenza||r.arrivo)return `${r.partenza||'—'} → ${r.arrivo||'—'}`;
+   return `${title} ${i+1}`;
+ };
+ const fmtFieldRows=(r)=>Object.entries(r)
+   .filter(([k,v])=>!String(k).startsWith('_') && v!==undefined && v!==null && v!=='')
+   .map(([k,v])=>`<span style="display:inline-block;margin:2px 8px 2px 0"><b>${escR(labels[k]||k)}:</b> ${escR(fmtDetail(k,v))}</span>`).join('');
+ document.getElementById('allDetails').innerHTML=Object.entries({
+   travelers:'VIAGGIATORI',flights:'VOLI',hotels:'HOTEL',cars:'AUTONOLEGGIO',
+   agenda:'AGENDA',restaurants:'RISTORANTI CONSIGLIATI',places:'LUOGHI DA VISITARE CONSIGLIATI',
+   budget:'BUDGET VIAGGIO'
+ }).map(([id,title])=>{
+   const arr=rows(id);
+   if(!arr.length)return `<div><b>${escR(title)}</b><div class="empty">Nessun dato</div></div>`;
+   return `<div><b>${escR(title)}</b>${arr.map((r,i)=>`<div style="margin-top:8px;padding:10px;border:1px solid #edf2f6;border-radius:10px"><strong>${escR(titleField(title,r,i))}</strong><div class="small" style="margin-top:6px">${fmtFieldRows(r)}</div></div>`).join('')}</div>`;
+ }).join('');
+
 
  try{
    if(window.twpReady) await window.twpReady;
@@ -136,6 +200,8 @@ async function renderReport(){
 async function exportTravelReport(){
  try{
    if(window.twpReady) await window.twpReady;
+   const pdfReady=await ensurePdfLibLoaded();
+   if(!pdfReady){alert('Impossibile caricare il motore PDF. Verifica la connessione Internet e riprova.');return;}
    const ok=await loadReportData();
    if(!ok){alert('Nessun dato salvato trovato. Torna al Planner, premi SALVA e riprova.');return;}
    await renderReport();
