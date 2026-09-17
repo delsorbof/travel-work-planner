@@ -284,11 +284,19 @@ function updateHeader(){
 }
 function formatDate(x){if(!x)return '';const [y,m,d]=x.split('-');return `${d}/${m}/${y}`}
 async function exportPDF(){
-  saveData();
-  updateHeader();
-  await renderPDFManifest();
-  setStatus('Preparazione riepilogo PDF…');
-  setTimeout(()=>window.print(),120);
+  try{
+    updateHeader();
+    setStatus('Preparazione Travel Report PDF…');
+    if(typeof createDossierPDF==='function'){
+      await createDossierPDF();
+      return;
+    }
+    throw new Error('Motore di esportazione PDF non disponibile.');
+  }catch(err){
+    console.error('Esportazione Travel Report fallita:',err);
+    alert("Errore nell'esportazione del Travel Report PDF:\n\n"+(err?.message||err));
+    setStatus('Errore esportazione PDF');
+  }
 }
 
 /* ============================================================
