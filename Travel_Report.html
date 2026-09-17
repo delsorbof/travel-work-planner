@@ -42,7 +42,7 @@ async function loadReportData(){
   // 1) Prefer the exact trip snapshot created by Planner -> Visualizza report.
   // This is the most reliable source because it represents the trip that was open.
   try{
-    const raw=sessionStorage.getItem('Travel_Work_Planner_Session_v25');
+    const raw=sessionStorage.getItem('TravelWorkPlanner_Session_v25');
     if(raw) parsed=JSON.parse(raw);
   }catch(e){ console.warn('Report: sessione non disponibile:',e); }
 
@@ -76,7 +76,7 @@ async function loadReportData(){
           window.__twpReportData=parsed;
           window._twpReportAttachments=Array.isArray(obj.attachments)?obj.attachments.filter(f=>!f.tripId || !source.trips || f.tripId===(source.activeTripId||'')):[];
           if(window.twpSetData) window.twpSetData(parsed);
-          try{ sessionStorage.setItem('Travel_Work_Planner_Session_v25',JSON.stringify(parsed)); }catch(e){}
+          try{ sessionStorage.setItem('TravelWorkPlanner_Session_v25',JSON.stringify(parsed)); }catch(e){}
           return true;
         }
       }
