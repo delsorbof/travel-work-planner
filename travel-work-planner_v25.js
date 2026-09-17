@@ -1189,10 +1189,27 @@ function importPendingHotel(){
     if(raw){try{queue=JSON.parse(raw);if(!Array.isArray(queue))queue=[]}catch(e){queue=[]}}
     if(!queue.length)return false;
     data.sections=data.sections||{};data.sections.hotels=Array.isArray(data.sections.hotels)?data.sections.hotels:[];data.sections.budget=Array.isArray(data.sections.budget)?data.sections.budget:[];
+    const currentTripId=activeTripId||'';
+    const matchingQueue=queue.filter(r=>{if(!r||!r.hotel)return false;if(r.tripId)return r.tripId===currentTripId;return queue.length===1;});
+    if(!matchingQueue.length)return false;
     let count=0;
-    for(const r of queue){const h=r&&r.hotel;if(!h)continue;const row={_id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),nome:h.name||'',piattaforma:h.platform || 'Hotelbeds',pnr:'',checkin:r.checkin||'',checkout:r.checkout||'',indirizzo:h.address||'',maps:h.url||'',_hotelSourceId:h.id||''};data.sections.hotels.push(row);
-      const pax=Math.max(1,Number(r.adults)||2),rooms=Math.max(1,Number(r.rooms)||1),total=Number(h.total!=null?h.total:h.price);const currency=String(h.currency||'EUR').toUpperCase();let desc=`Hotel ${h.name||''} — ${r.checkin||''} → ${r.checkout||''}`;if(Number.isFinite(total)&&total>=0&&currency==='EUR'){data.sections.budget.push({_id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),categoria:'Hotel',descrizione:desc+` — totale ${total.toFixed(2)} EUR`,costo:(total).toFixed(2),perViaggiatore:false,viaggiatori:1,sostenuta:false,valuta:'EUR',prezzoTotale:total,prezzoPerPasseggero:total/pax,statoPrezzo:'Prezzo ricerca Hotelbeds; soggetto a variazione',_sourceSection:'hotels',_sourceRowIds:[row._id]});}else{data.sections.budget.push({_id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),categoria:'Hotel',descrizione:desc+' — PREZZO DA VERIFICARE / INSERIRE',costo:'0.00',perViaggiatore:false,viaggiatori:1,sostenuta:false,valuta:currency,prezzoTotale:0,prezzoPerPasseggero:0,statoPrezzo:'PREZZO DA VERIFICARE / INSERIRE',_sourceSection:'hotels',_sourceRowIds:[row._id]});}count++;}
-    localStorage.removeItem('travelWorkPlannerPendingHotels_v25');return count>0;
+    for(const r of matchingQueue){
+      const h=r.hotel;if(!h)continue;
+      const row={_id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),nome:h.name||'',piattaforma:h.platform||'Hotelbeds',pnr:'',checkin:r.checkin||'',checkout:r.checkout||'',indirizzo:h.address||'',maps:h.url||'',_hotelSourceId:h.id||''};
+      data.sections.hotels.push(row);
+      const pax=Math.max(1,Number(r.adults)||2),total=Number(h.total!=null?h.total:h.price),currency=String(h.currency||'EUR').toUpperCase();
+      let desc=`Hotel ${h.name||''} — ${r.checkin||''} → ${r.checkout||''}`;
+      if(Number.isFinite(total)&&total>=0&&currency==='EUR')data.sections.budget.push({_id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),categoria:'Hotel',descrizione:desc+` — totale ${total.toFixed(2)} EUR`,costo:total.toFixed(2),perViaggiatore:false,viaggiatori:1,sostenuta:false,valuta:'EUR',prezzoTotale:total,prezzoPerPasseggero:total/pax,statoPrezzo:'Prezzo ricerca Hotelbeds; soggetto a variazione',_sourceSection:'hotels',_sourceRowIds:[row._id]});
+      else data.sections.budget.push({_id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),categoria:'Hotel',descrizione:desc+' — PREZZO DA VERIFICARE / INSERIRE',costo:'0.00',perViaggiatore:false,viaggiatori:1,sostenuta:false,valuta:currency,prezzoTotale:0,prezzoPerPasseggero:0,statoPrezzo:'PREZZO DA VERIFICARE / INSERIRE',_sourceSection:'hotels',_sourceRowIds:[row._id]});
+      count++;
+    }
+    if(count>0){
+      const importedIds=new Set(matchingQueue.filter(r=>r&&r.importId).map(r=>r.importId));
+      const remaining=queue.filter(r=>{if(!r)return false;if(r.importId)return !importedIds.has(r.importId);return !matchingQueue.includes(r);});
+      if(remaining.length)localStorage.setItem('travelWorkPlannerPendingHotels_v25',JSON.stringify(remaining));else localStorage.removeItem('travelWorkPlannerPendingHotels_v25');
+      saveSessionState();
+    }
+    return count>0;
   }catch(e){console.warn('Importazione hotel fallita',e);return false;}
 }
 
