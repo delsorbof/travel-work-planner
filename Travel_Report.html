@@ -39,31 +39,66 @@ function getData(){return window.twpGetData?window.twpGetData():null}
 function rows(id){const d=getData();return d?.sections?.[id]||[]}
 async function loadReportData(){
   let parsed=null;
-  // Prima catturiamo i dati della sessione generati dal Planner.
-  // Poi attendiamo il caricamento del JS condiviso: quel JS avvia in parallelo
-  // il caricamento del cloud e potrebbe altrimenti sovrascrivere temporaneamente
-  // i dati del viaggio appena aperto.
-  try{ const raw=sessionStorage.getItem('Travel_Work_Planner_Session_v25'); if(raw) parsed=JSON.parse(raw); }catch(e){ console.warn('Report: sessione non disponibile:',e); }
-  if(parsed){
+  // 1) Prefer the exact trip snapshot created by Planner -> Visualizza report.
+  // This is the most reliable source because it represents the trip that was open.
+  try{
+    const raw=sessionStorage.getItem('Travel_Work_Planner_Session_v25');
+    if(raw) parsed=JSON.parse(raw);
+  }catch(e){ console.warn('Report: sessione non disponibile:',e); }
+
+  // 2) Initialize the shared Planner bridge, but restore the report snapshot AFTER
+  // initialization so the cloud loader cannot overwrite it.
+  try{ if(window.twpReady) await window.twpReady; }catch(e){ console.warn('Report: inizializzazione Planner non riuscita:',e); }
+
+  if(parsed && parsed.sections){
     window.__twpReportData=parsed;
     window._twpReportAttachments=[];
-    try{ if(window.twpReady) await window.twpReady; }catch(e){ console.warn('Report: inizializzazione Planner non riuscita:',e); }
-    if(window.twpSetData) window.twpSetData(window.__twpReportData); else return false;
+    if(window.twpSetData) window.twpSetData(parsed);
     return true;
   }
-  // Se non esiste una sessione corrente, il cloud è la fonte dati di fallback.
-  try{
-    if(window.twpReady) await window.twpReady;
-    const r=await fetch('/api/planner-data',{cache:'no-store'});
-    if(r.ok){const obj=await r.json(); if(obj && obj.ok!==false && obj.data){ parsed=obj.data; window.__twpReportData=parsed; window._twpReportAttachments=Array.isArray(obj.attachments)?obj.attachments:[]; }}
-  }catch(e){console.warn('Report: API cloud non disponibile:',e)}
-  if(!parsed){ try{const raw=localStorage.getItem('travelWorkPlannerData_v13');if(raw){parsed=JSON.parse(raw);window.__twpReportData=parsed;}}catch(e){console.warn('Report: backup browser non disponibile:',e)} }
-  if(!parsed) return false;
-  if(window.twpSetData) window.twpSetData(parsed); else return false;
-  try{ if(window.twpRestoreAttachments && Array.isArray(window._twpReportAttachments)) await window.twpRestoreAttachments(window._twpReportAttachments); }catch(e){console.warn('Report: ripristino allegati fallito:',e)}
-  return true;
-}
 
+  // 3) Cloud fallback. In the multi-trip format /api/planner-data returns an archive
+  // ({activeTripId,trips:{...}}), not a single trip. Select the active trip explicitly.
+  try{
+    const r=await fetch('/api/planner-data',{cache:'no-store'});
+    if(r.ok){
+      const obj=await r.json();
+      if(obj && obj.ok!==false && obj.data){
+        let source=obj.data;
+        if(source && source.trips && typeof source.trips==='object'){
+          const ids=Object.keys(source.trips);
+          const active=(source.activeTripId && source.trips[source.activeTripId]) ? source.activeTripId : ids[0];
+          parsed=active ? source.trips[active] : null;
+        }else{
+          parsed=source;
+        }
+        if(parsed && parsed.sections){
+          window.__twpReportData=parsed;
+          window._twpReportAttachments=Array.isArray(obj.attachments)?obj.attachments.filter(f=>!f.tripId || !source.trips || f.tripId===(source.activeTripId||'')):[];
+          if(window.twpSetData) window.twpSetData(parsed);
+          try{ sessionStorage.setItem('Travel_Work_Planner_Session_v25',JSON.stringify(parsed)); }catch(e){}
+          return true;
+        }
+      }
+    }
+  }catch(e){ console.warn('Report: API cloud non disponibile:',e); }
+
+  // 4) Last-resort browser backup, also supporting the multi-trip archive shape.
+  try{
+    const raw=localStorage.getItem('travelWorkPlannerData_v13') || localStorage.getItem('TravelWorkPlanner_Trips_v1');
+    if(raw){
+      let source=JSON.parse(raw);
+      if(source && source.trips && typeof source.trips==='object'){
+        const ids=Object.keys(source.trips);
+        const active=(source.activeTripId && source.trips[source.activeTripId]) ? source.activeTripId : ids[0];
+        source=active ? source.trips[active] : null;
+      }
+      if(source && source.sections){ parsed=source; window.__twpReportData=parsed; if(window.twpSetData) window.twpSetData(parsed); return true; }
+    }
+  }catch(e){ console.warn('Report: backup browser non disponibile:',e); }
+
+  return false;
+}
 async function getTravelMapImageReport(){
  try{return window.twpGetTravelMapImage4?await window.twpGetTravelMapImage4():null}catch(e){return null}
 }
