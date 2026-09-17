@@ -611,21 +611,21 @@ function drawBudgetTable4(page,y,rows,font,bold,rgb,newPage,H){
   const r=rows[i];
   if(y-rowH<60){page=newPage('BUDGET VIAGGIO','Riepilogo spese — continua');y=H-118;drawHeader();y-=headerH;}
   if(i%2===0)page.drawRectangle({x,y:y-rowH,width:W,height:rowH,color:rgb(0.94,0.96,0.97)});
-  const vals=[r.categoria||'Varie',r.descrizione||'',formatEuro(Number(r.costo)||0),r.perViaggiatore?String(Math.max(1,Number(r.viaggiatori)||1)):'1',formatEuro(budgetRowTotal(r)),r.sostenuta?'SOSTENUTA':'DA SOSTENERE'];
+  const vals=[r.categoria||'Varie',r.descrizione||'',formatEuro(Number(r.costo)||0),r.perViaggiatore?String(Math.max(1,Number(r.viaggiatori)||1)):'1',formatEuro(budgetRowTotal(r)),r.sostenuta?'GIÀ PAGATA':'DA PAGARE'];
   let xx=x;vals.forEach((v,j)=>{const w=cols[j][1];let txt=cleanText4(v),orig=txt;while(txt.length>8&&font.widthOfTextAtSize(dossierText4(txt,font),8.1)>w-12)txt=txt.slice(0,-1);if(txt!==orig)txt+='…';page.drawText(dossierText4(txt,font),{x:xx+6,y:y-18,size:8.1,font,color:j===4?rgb(0.72,0.04,0.12):rgb(0.07,0.19,0.30)});xx+=w;});
   page.drawLine({start:{x,y:y-rowH},end:{x:x+W,y:y-rowH},thickness:0.4,color:rgb(0.83,0.88,0.91)});y-=rowH;
  }
  if(y-72<45){page=newPage('BUDGET VIAGGIO','Riepilogo totale — continua');y=H-118;}
  page.drawRectangle({x,y:y-40,width:W,height:40,color:rgb(0.93,0.95,0.97),borderColor:rgb(0.78,0.84,0.88),borderWidth:0.6});
- const total=formatEuro(budgetGrandTotal()),sostenute=formatEuro(budgetSustainedTotal()),daSostenere=formatEuro(budgetToSustainTotal());
+ const total=formatEuro(budgetGrandTotal()),sostenute=formatEuro(budgetSustainedTotal()),daSostenere=formatEuro(budgetToSustainTotal()); const pagateCount=rows.filter(r=>!!r?.sostenuta).length,daPagareCount=rows.length-pagateCount;
  page.drawRectangle({x,y:y-68,width:W,height:68,color:rgb(0.93,0.95,0.97),borderColor:rgb(0.78,0.84,0.88),borderWidth:0.6});
- page.drawText(dossierText4('TOTALE SPESE PREVENTIVATE',bold),{x:x+12,y:y-21,size:9.5,font:bold,color:rgb(0.10,0.18,0.25)});
+ page.drawText(dossierText4('TOTALE SPESE',bold),{x:x+12,y:y-21,size:9.5,font:bold,color:rgb(0.10,0.18,0.25)});
  page.drawText(dossierText4(total,bold),{x:x+W-12-bold.widthOfTextAtSize(dossierText4(total,bold),12),y:y-23,size:12,font:bold,color:rgb(0.72,0.04,0.12)});
- page.drawText(dossierText4('GIÀ SOSTENUTE',bold),{x:x+12,y:y-43,size:8.5,font:bold,color:rgb(0.10,0.18,0.25)});
+ page.drawText(dossierText4(`GIÀ PAGATE · ${pagateCount} ${pagateCount===1?'VOCE':'VOCI'}`,bold),{x:x+12,y:y-43,size:8.5,font:bold,color:rgb(0.10,0.18,0.25)});
  page.drawText(dossierText4(sostenute,bold),{x:x+W-12-bold.widthOfTextAtSize(dossierText4(sostenute,bold),10),y:y-45,size:10,font:bold,color:rgb(0.10,0.18,0.25)});
- page.drawText(dossierText4('DA SOSTENERE',bold),{x:x+12,y:y-61,size:8.5,font:bold,color:rgb(0.10,0.18,0.25)});
+ page.drawText(dossierText4(`DA PAGARE · ${daPagareCount} ${daPagareCount===1?'VOCE':'VOCI'}`,bold),{x:x+12,y:y-61,size:8.5,font:bold,color:rgb(0.10,0.18,0.25)});
  page.drawText(dossierText4(daSostenere,bold),{x:x+W-12-bold.widthOfTextAtSize(dossierText4(daSostenere,bold),10),y:y-63,size:10,font:bold,color:rgb(0.10,0.18,0.25)});
- // Nota metodologica: i valori del budget provenienti dalle ricerche sono indicativi.
+ page.drawText(dossierText4('Il totale è suddiviso tra importi già pagati e importi ancora da pagare, in base al campo “Sostenuta” del budget.',font),{x:x+12,y:y-80,size:7.8,font,color:rgb(0.34,0.41,0.47)});\n // Nota metodologica: i valori del budget provenienti dalle ricerche sono indicativi.
  const budgetNote="NOTA SUI PREZZI: i prezzi riportati nel budget sono indicativi e si riferiscono alle condizioni disponibili al momento della ricerca. Non tengono conto di eventuali acquisti o supplementi accessori, ad esempio bagagli da stiva, priority boarding, scelta del posto, servizi extra o altre opzioni aggiuntive. Verificare sempre il prezzo finale prima dell'acquisto.";
  const noteLines=wrappedRowPdfLines4([budgetNote],font,8,505);
  let ny=y-94;
@@ -1163,30 +1163,7 @@ async function createDossierPDF(){
 }
 
 // Bridge pubblico usato da Travel_Report.html per l'esportazione del report.
-function twpShowPdfBusy(){
-  try{
-    if(!document.getElementById('twpPdfBusyStyle')){
-      const st=document.createElement('style');st.id='twpPdfBusyStyle';
-      st.textContent='.busy-overlay{position:fixed;inset:0;background:rgba(15,23,42,.58);display:flex;align-items:center;justify-content:center;z-index:99999}.busy-overlay.hidden{display:none}.busy-box{background:#fff;border-radius:18px;padding:28px 34px;box-shadow:0 18px 60px rgba(0,0,0,.28);text-align:center;min-width:320px}.spinner{width:42px;height:42px;border:4px solid #dbe3ea;border-top-color:#2563eb;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}.busy-title{font-size:20px;font-weight:700}.busy-text{margin-top:7px;color:#52606d}';
-      document.head.appendChild(st);
-    }
-    let ov=document.getElementById('busyOverlay');
-    if(!ov){
-      ov=document.createElement('div');ov.id='busyOverlay';ov.className='busy-overlay';ov.setAttribute('aria-live','assertive');ov.setAttribute('aria-busy','true');
-      ov.innerHTML='<div class="busy-box"><div class="spinner"></div><div class="busy-title">Attendi, generazione PDF in corso…</div><div id="busyText" class="busy-text">Sto preparando il Travel Report e gli allegati. Non chiudere la pagina.</div></div>';
-      document.body.appendChild(ov);
-    }
-    ov.classList.remove('hidden');
-  }catch(e){console.warn('Popup PDF non disponibile',e)}
-}
-function twpHidePdfBusy(){
-  try{const ov=document.getElementById('busyOverlay');if(ov)ov.classList.add('hidden')}catch(e){}
-}
-window.twpCreateTravelReportPDF=async function(){
-  twpShowPdfBusy();
-  try{return await createDossierPDF();}
-  finally{twpHidePdfBusy();}
-};
+window.twpCreateTravelReportPDF=createDossierPDF;
 window.getDossierFiles4=getDossierFiles4;
 
 function importPendingCar(){
