@@ -1103,7 +1103,7 @@ async function createDossierPDF(){
     {
       const rows=data.sections?.budget||[],x=36,tableW=523,dark=rgb(.07,.19,.30),blue=rgb(.07,.36,.61),red=rgb(.72,.04,.12),muted=rgb(.38,.45,.51);
       const total=budgetGrandTotal(),sustained=budgetSustainedTotal(),remaining=budgetToSustainTotal();
-      const widths=[105,255,78,85],headers=['Categoria','Descrizione','Costo','Totale'];
+      const widths=[95,210,68,72,78],headers=['Categoria','Descrizione','Costo','Totale','Stato'];
       const drawBudgetTable=(p,chunk,startIndex)=>{
         let y=720;
         p.drawRectangle({x,y:y-24,width:tableW,height:24,color:dark});
@@ -1113,7 +1113,7 @@ async function createDossierPDF(){
         chunk.forEach((r,i)=>{
           const rh=31;
           if(i%2===0)p.drawRectangle({x,y:y-rh,width:tableW,height:rh,color:rgb(.95,.97,.98)});
-          const vals=[r.categoria||'Varie',r.descrizione||'',formatEuro(Number(r.costo)||0),formatEuro(budgetRowTotal(r))];
+          const vals=[r.categoria||'Varie',r.descrizione||'',formatEuro(Number(r.costo)||0),formatEuro(budgetRowTotal(r)),r.sostenuta?'GIÀ PAGATA':'DA PAGARE'];
           let qx=x;
           vals.forEach((v,j)=>{let txt=cleanText4(v),orig=txt;while(txt.length>5&&font.widthOfTextAtSize(dossierText4(txt,font),7.2)>widths[j]-12)txt=txt.slice(0,-1);if(txt!==orig)txt+='…';p.drawText(dossierText4(txt,font),{x:qx+7,y:y-20,size:7.2,font,color:j===3?red:rgb(.10,.18,.25)});qx+=widths[j]});
           p.drawLine({start:{x,y:y-rh},end:{x:x+tableW,y:y-rh},thickness:.35,color:rgb(.83,.88,.91)});y-=rh;
@@ -1124,12 +1124,14 @@ async function createDossierPDF(){
       const firstChunk=rows.slice(0,14);
       page=newPage('DETTAGLIO BUDGET','Voci di spesa, totale preventivato e stato economico del viaggio');
       let y=720;
-      const cards=[['TOTALE PREVENTIVATO',formatEuro(total),dark],['GIÀ SOSTENUTO',formatEuro(sustained),blue],['DA SOSTENERE',formatEuro(remaining),red]];
+      const paidCount=rows.filter(r=>!!r?.sostenuta).length,unpaidCount=rows.length-paidCount;
+      const cards=[['TOTALE SPESE',formatEuro(total),dark],[`GIÀ PAGATO · ${paidCount} ${paidCount===1?'VOCE':'VOCI'}`,formatEuro(sustained),blue],[`DA PAGARE · ${unpaidCount} ${unpaidCount===1?'VOCE':'VOCI'}`,formatEuro(remaining),red]];
       let cx=x;cards.forEach(([lab,val,col])=>{page.drawRectangle({x:cx,y:y-52,width:165,height:52,color:rgb(.95,.97,.98),borderColor:rgb(.83,.89,.92),borderWidth:.6});page.drawText(dossierText4(lab,bold),{x:cx+9,y:y-17,size:6.7,font:bold,color:muted});page.drawText(dossierText4(val,bold),{x:cx+9,y:y-39,size:12,font:bold,color:col});cx+=179;});
       y-=70;
       drawBudgetTable(page,firstChunk,0);
       const note='I prezzi riportati nel budget sono indicativi e dipendono dalle condizioni disponibili al momento della ricerca. Verificare sempre il prezzo finale prima dell’acquisto; eventuali bagagli, priority, scelta del posto e altri servizi extra possono non essere inclusi.';
-      page.drawText(dossierText4('TOTALE SPESE PREVENTIVATE',bold),{x:x,y:92,size:8.5,font:bold,color:rgb(.10,.18,.25)});
+      page.drawText(dossierText4('RIPARTIZIONE DELLE SPESE',bold),{x:x,y:92,size:8.5,font:bold,color:rgb(.10,.18,.25)});
+      page.drawText(dossierText4(`Già pagato: ${formatEuro(sustained)} · Da pagare: ${formatEuro(remaining)}`,font),{x:x,y:80,size:7.5,font,color:muted});
       page.drawText(dossierText4(formatEuro(total),bold),{x:x+tableW-bold.widthOfTextAtSize(dossierText4(formatEuro(total),bold),12),y:90,size:12,font:bold,color:red});
       drawWrapped(page,note,x,70,6.7,tableW,9,muted,4);
       for(let start=14;start<rows.length;start+=18){
