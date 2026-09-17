@@ -201,7 +201,7 @@ async function removeRow(id,i){
  if(!confirm('Rimuovere questa riga e i suoi allegati?'))return;
  const row=data.sections[id]?.[i], rid=row?rowUid(row):null;
  data.sections[id].splice(i,1);
- const files=await getFiles(x=>x.section===id && (x.rowId===rid || (x.rowId==null && x.row===i)));
+ const files=await getFiles(x=>(x.tripId||activeTripId)===activeTripId && x.section===id && (x.rowId===rid || (x.rowId==null && x.row===i)));
  for(const f of files) await deleteStoredFile(f.id);
  renderRows(id); saveData(); await renderPDFManifest();
 }
@@ -258,19 +258,19 @@ function attachmentBytes4(f){
 }
 async function listRowFiles(id,i){
  const row=data.sections[id]?.[i], rid=row?rowUid(row):null;
- const fs=await getFiles(x=>x.section===id && (x.rowId===rid || (x.rowId==null && x.row===i)));
+ const fs=await getFiles(x=>(x.tripId||activeTripId)===activeTripId && x.section===id && (x.rowId===rid || (x.rowId==null && x.row===i)));
  const box=document.getElementById(`files_${id}_${i}`),pbox=document.getElementById(`printfiles_${id}_${i}`); if(!box)return;
  box.innerHTML=fs.map(f=>`<div>${esc(f.name)} <button type="button" class="delete-file" onclick="deleteFile('${f.id}','${id}',${i})">✕</button></div>`).join('');
  pbox.innerHTML=fs.length?'<b>Allegati:</b> '+fs.map(f=>esc(f.name)).join(', '):'';
 }
 async function deleteFile(fid,id,i){try{await deleteStoredFile(fid);await listRowFiles(id,i);await renderPDFManifest();}catch(err){alert(err.message||err)}}
 async function renderPDFManifest(){
- const fs=await getFiles(x=>true),box=document.getElementById('pdfAttachmentManifest'); if(!box)return;
+ const fs=await getFiles(x=>(x.tripId||activeTripId)===activeTripId),box=document.getElementById('pdfAttachmentManifest'); if(!box)return;
  if(!fs.length){box.textContent='Nessun allegato PDF.';return}
  box.innerHTML=fs.map(f=>{const sec=f.section==='global'?'Allegati vari':(configs[f.section]?.title||f.section);const row=f.row>=0?` — riga ${f.row+1}`:'';return `<div>📎 <b>${esc(f.name)}</b> <span class="small">(${esc(sec)}${row})</span></div>`}).join('');
 }
 async function renderGlobalFiles(){
- const fs=await getFiles(x=>x.section==='global');
+ const fs=await getFiles(x=>(x.tripId||activeTripId)===activeTripId && x.section==='global');
  document.getElementById('globalFileList').innerHTML=fs.map(f=>`<div style="padding:5px 0;border-bottom:1px solid #eee">📎 ${esc(f.name)} <button type="button" class="danger no-print" onclick="deleteGlobal('${f.id}')">✕</button></div>`).join('');
 }
 async function deleteGlobal(id){try{await deleteStoredFile(id);await renderGlobalFiles();await renderPDFManifest();}catch(err){alert(err.message||err)}}
@@ -380,7 +380,7 @@ async function getDossierFiles4(){
   // Ordine aziendale: modulo -> riga -> allegati della riga -> allegati vari.
   // Eliminiamo eventuali duplicati presenti nell'archivio locale, così lo stesso
   // allegato non può essere incorporato due volte nel dossier.
-  const raw=await getFiles(x=>true);
+  const raw=await getFiles(x=>(x.tripId||activeTripId)===activeTripId);
   const seen=new Set(), all=[];
   for(const f of raw){
     const key=[f.tripId||'',f.section||'',f.rowId||'',f.row??'',f.name||'',f.size||''].join('|');
@@ -1057,84 +1057,32 @@ async function createDossierPDF(){
       }
     }
 
-    // PAGINE SUCCESSIVE — DETTAGLI COMPLETI DEL PLANNING
-    // Tutti i campi compilati vengono riportati nel dossier, senza limitarsi ai riepiloghi.
-    {
-      const dark=rgb(.07,.19,.30), blue=rgb(.07,.36,.61), red=rgb(.72,.04,.12), green=rgb(.08,.49,.40), muted=rgb(.38,.45,.51);
-      const sectionList=[
-        ['VIAGGIATORI',travelers,[['nome','Nome'],['cognome','Cognome'],['ruolo','Ruolo'],['email','Email'],['telefono','Telefono']]],
-        ['VOLI',flights,[['tipoVolo','Tipo'],['compagnia','Compagnia'],['numeroVolo','Numero volo'],['pnr','PNR'],['partenza','Partenza'],['arrivo','Arrivo'],['dataPartenza','Data partenza'],['oraPartenza','Ora partenza'],['dataArrivo','Data arrivo'],['oraArrivo','Ora arrivo'],['zaino','Zaino cabina'],['cabina','Bagaglio cabina'],['stiva','Bagaglio stiva'],['priority','Priority']]],
-        ['HOTEL',hotels,[['nome','Nome hotel'],['piattaforma','Piattaforma'],['pnr','PNR'],['checkin','Check-in'],['checkout','Check-out'],['indirizzo','Indirizzo'],['maps','Google Maps']]],
-        ['AUTONOLEGGIO',cars,[['pnr','PNR'],['prelievoData','Data prelievo'],['prelievoOra','Ora prelievo'],['riconsegnaData','Data riconsegna'],['riconsegnaOra','Ora riconsegna'],['note','Note']]],
-      ];
-      const fmtField=(key,val)=>{
-        if(val===true)return 'Sì'; if(val===false)return 'No'; if(val==null||val==='')return '—';
-        if(/Data|checkin|checkout/i.test(key) && /^\d{4}-\d{2}-\d{2}$/.test(String(val))) return formatDate(val)||String(val);
-        return cleanText4(String(val));
-      };
-      for(const [section,items,fields] of sectionList){
-        if(!items.length) continue;
-        for(let start=0;start<items.length;start+=5){
-          const chunk=items.slice(start,start+5);
-          page=newPage(section+(items.length>5?' · CONTINUA':''),`${section} · dettagli completi${items.length>5?` · pagina ${Math.floor(start/5)+1}`:''}`);
-          let y=735;
-          chunk.forEach((item,idx)=>{
-            const cardH=126;
-            page.drawRectangle({x:32,y:y-cardH,width:531,height:cardH,color:rgb(.98,.99,1),borderColor:rgb(.82,.88,.92),borderWidth:.6});
-            page.drawRectangle({x:32,y:y-cardH,width:5,height:cardH,color:[blue,green,red][idx%3]});
-            const itemTitle=section==='VOLI' ? `${item.partenza||'—'} → ${item.arrivo||'—'} · ${item.compagnia||''} ${item.numeroVolo||''}`.trim() : (item.nome||item.descrizione||item.luogo||`${section} ${start+idx+1}`);
-            page.drawText(dossierText4(cleanText4(itemTitle),bold),{x:48,y:y-18,size:9.5,font:bold,color:dark});
-            fields.forEach((f,fi)=>{
-              const col=fi%2, row=Math.floor(fi/2), xx=48+col*271, lineY=y-36-row*20;
-              if(lineY<y-cardH+10)return;
-              const label=f[1], val=fmtField(f[0],item[f[0]]);
-              page.drawText(dossierText4(label.toUpperCase(),bold),{x:xx,y:lineY,size:5.5,font:bold,color:muted});
-              drawWrapped(page,val,xx,lineY-8,6.8,255,8,dark,2);
-            });
-            y-=cardH+10;
-          });
-        }
-      }
-    }
-
-    // PAGINE SUCCESSIVE — DETTAGLIO BUDGET COMPLETO
+    // PAGINA SUCCESSIVA — DETTAGLIO BUDGET
+    page=newPage('DETTAGLIO BUDGET','Voci di spesa, totale preventivato e stato economico del viaggio');
     {
       const rows=data.sections?.budget||[],x=36,tableW=523,dark=rgb(.07,.19,.30),blue=rgb(.07,.36,.61),red=rgb(.72,.04,.12),muted=rgb(.38,.45,.51);
-      const total=budgetGrandTotal(),sustained=budgetSustainedTotal(),remaining=budgetToSustainTotal();
-      const widths=[105,255,78,85],headers=['Categoria','Descrizione','Costo','Totale'];
-      const drawBudgetTable=(p,chunk,startIndex)=>{
-        let y=720;
-        p.drawRectangle({x,y:y-24,width:tableW,height:24,color:dark});
-        let xx=x;headers.forEach((h,i)=>{p.drawText(dossierText4(h.toUpperCase(),bold),{x:xx+7,y:y-16,size:6.8,font:bold,color:rgb(1,1,1)});xx+=widths[i]});
-        y-=24;
-        if(!chunk.length){p.drawText(dossierText4('Nessuna voce di spesa inserita.',font),{x:x+8,y:y-18,size:8,font,color:muted});return y-28;}
-        chunk.forEach((r,i)=>{
-          const rh=31;
-          if(i%2===0)p.drawRectangle({x,y:y-rh,width:tableW,height:rh,color:rgb(.95,.97,.98)});
-          const vals=[r.categoria||'Varie',r.descrizione||'',formatEuro(Number(r.costo)||0),formatEuro(budgetRowTotal(r))];
-          let qx=x;
-          vals.forEach((v,j)=>{let txt=cleanText4(v),orig=txt;while(txt.length>5&&font.widthOfTextAtSize(dossierText4(txt,font),7.2)>widths[j]-12)txt=txt.slice(0,-1);if(txt!==orig)txt+='…';p.drawText(dossierText4(txt,font),{x:qx+7,y:y-20,size:7.2,font,color:j===3?red:rgb(.10,.18,.25)});qx+=widths[j]});
-          p.drawLine({start:{x,y:y-rh},end:{x:x+tableW,y:y-rh},thickness:.35,color:rgb(.83,.88,.91)});y-=rh;
-        });
-        p.drawText(dossierText4(`Voci ${startIndex+1}–${startIndex+chunk.length} di ${rows.length}`,font),{x,y:y-14,size:6.5,font,color:muted});
-        return y-25;
-      };
-      const firstChunk=rows.slice(0,14);
-      page=newPage('DETTAGLIO BUDGET','Voci di spesa, totale preventivato e stato economico del viaggio');
       let y=720;
-      const cards=[['TOTALE PREVENTIVATO',formatEuro(total),dark],['GIÀ SOSTENUTO',formatEuro(sustained),blue],['DA SOSTENERE',formatEuro(remaining),red]];
-      let cx=x;cards.forEach(([lab,val,col])=>{page.drawRectangle({x:cx,y:y-52,width:165,height:52,color:rgb(.95,.97,.98),borderColor:rgb(.83,.89,.92),borderWidth:.6});page.drawText(dossierText4(lab,bold),{x:cx+9,y:y-17,size:6.7,font:bold,color:muted});page.drawText(dossierText4(val,bold),{x:cx+9,y:y-39,size:12,font:bold,color:col});cx+=179;});
-      y-=70;
-      drawBudgetTable(page,firstChunk,0);
+      const total=budgetGrandTotal(),sustained=budgetSustainedTotal(),remaining=budgetToSustainTotal();
+      const cards=[['TOTALE PREVENTIVATO',formatEuro(total),dark],['GIÀ SOSTENUTO',formatEuro(sustained),blue||dark],['DA SOSTENERE',formatEuro(remaining),red]];
+      let cx=x;cards.forEach(([lab,val,col])=>{page.drawRectangle({x:cx,y:y-52,width:165,height:52,color:rgb(.95,.97,.98),borderColor:rgb(.83,.89,.92),borderWidth:.6});page.drawText(dossierText4(lab,bold),{x:cx+9,y:y-17,size:6.7,font:bold,color:muted});page.drawText(dossierText4(val,bold),{x:cx+9,y:y-39,size:12,font:bold,color:col});cx+=179;});y-=70;
+      const widths=[105,255,78,85],headers=['Categoria','Descrizione','Costo','Totale'];
+      page.drawRectangle({x,y:y-24,width:tableW,height:24,color:dark});let xx=x;headers.forEach((h,i)=>{page.drawText(dossierText4(h.toUpperCase(),bold),{x:xx+7,y:y-16,size:6.8,font:bold,color:rgb(1,1,1)});xx+=widths[i]});y-=24;
+      if(!rows.length){page.drawText(dossierText4('Nessuna voce di spesa inserita.',font),{x:x+8,y:y-18,size:8,font,color:muted});y-=28;}
+      rows.forEach((r,i)=>{
+        const rh=31;if(y-rh<150)return;
+        if(i%2===0)page.drawRectangle({x,y:y-rh,width:tableW,height:rh,color:rgb(.95,.97,.98)});
+        const vals=[r.categoria||'Varie',r.descrizione||'',formatEuro(Number(r.costo)||0),formatEuro(budgetRowTotal(r))];let qx=x;
+        vals.forEach((v,j)=>{let txt=cleanText4(v),orig=txt;while(txt.length>5&&font.widthOfTextAtSize(dossierText4(txt,font),7.2)>widths[j]-12)txt=txt.slice(0,-1);if(txt!==orig)txt+='…';page.drawText(dossierText4(txt,font),{x:qx+7,y:y-20,size:7.2,font,color:j===3?red:rgb(.10,.18,.25)});qx+=widths[j]});
+        page.drawLine({start:{x,y:y-rh},end:{x:x+tableW,y:y-rh},thickness:.35,color:rgb(.83,.88,.91)});y-=rh;
+      });
+      if(rows.length>20){page.drawText(dossierText4(`Le prime 20 voci sono mostrate in tabella. Totale complessivo: ${formatEuro(total)}.`,font),{x,y:y-12,size:6.7,font,color:muted});y-=20;}
+      if(y-75<75){y=130;}
+      page.drawRectangle({x,y:y-64,width:tableW,height:64,color:rgb(.93,.96,.98),borderColor:rgb(.79,.86,.90),borderWidth:.6});
+      page.drawText(dossierText4('TOTALE SPESE PREVENTIVATE',bold),{x:x+12,y:y-20,size:9,font:bold,color:rgb(.10,.18,.25)});
+      page.drawText(dossierText4(formatEuro(total),bold),{x:x+tableW-12-bold.widthOfTextAtSize(dossierText4(formatEuro(total),bold),12),y:y-22,size:12,font:bold,color:red});
+      page.drawText(dossierText4(`Già sostenute: ${formatEuro(sustained)} · Da sostenere: ${formatEuro(remaining)}`,font),{x:x+12,y:y-43,size:7,font,color:muted});
       const note='I prezzi riportati nel budget sono indicativi e dipendono dalle condizioni disponibili al momento della ricerca. Verificare sempre il prezzo finale prima dell’acquisto; eventuali bagagli, priority, scelta del posto e altri servizi extra possono non essere inclusi.';
-      page.drawText(dossierText4('TOTALE SPESE PREVENTIVATE',bold),{x:x,y:92,size:8.5,font:bold,color:rgb(.10,.18,.25)});
-      page.drawText(dossierText4(formatEuro(total),bold),{x:x+tableW-bold.widthOfTextAtSize(dossierText4(formatEuro(total),bold),12),y:90,size:12,font:bold,color:red});
-      drawWrapped(page,note,x,70,6.7,tableW,9,muted,4);
-      for(let start=14;start<rows.length;start+=18){
-        const chunk=rows.slice(start,start+18);
-        page=newPage('DETTAGLIO BUDGET · CONTINUA',`Voci di spesa ${start+1}–${Math.min(start+chunk.length,rows.length)} di ${rows.length}`);
-        drawBudgetTable(page,chunk,start);
-      }
+      drawWrapped(page,note,x,y-84,7.2,tableW,10,rgb(.34,.41,.47),5);
     }
 
     // ALLEGATI — solo dopo le 3 pagine del report
@@ -1189,27 +1137,10 @@ function importPendingHotel(){
     if(raw){try{queue=JSON.parse(raw);if(!Array.isArray(queue))queue=[]}catch(e){queue=[]}}
     if(!queue.length)return false;
     data.sections=data.sections||{};data.sections.hotels=Array.isArray(data.sections.hotels)?data.sections.hotels:[];data.sections.budget=Array.isArray(data.sections.budget)?data.sections.budget:[];
-    const currentTripId=activeTripId||'';
-    const matchingQueue=queue.filter(r=>{if(!r||!r.hotel)return false;if(r.tripId)return r.tripId===currentTripId;return queue.length===1;});
-    if(!matchingQueue.length)return false;
     let count=0;
-    for(const r of matchingQueue){
-      const h=r.hotel;if(!h)continue;
-      const row={_id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),nome:h.name||'',piattaforma:h.platform||'Hotelbeds',pnr:'',checkin:r.checkin||'',checkout:r.checkout||'',indirizzo:h.address||'',maps:h.url||'',_hotelSourceId:h.id||''};
-      data.sections.hotels.push(row);
-      const pax=Math.max(1,Number(r.adults)||2),total=Number(h.total!=null?h.total:h.price),currency=String(h.currency||'EUR').toUpperCase();
-      let desc=`Hotel ${h.name||''} — ${r.checkin||''} → ${r.checkout||''}`;
-      if(Number.isFinite(total)&&total>=0&&currency==='EUR')data.sections.budget.push({_id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),categoria:'Hotel',descrizione:desc+` — totale ${total.toFixed(2)} EUR`,costo:total.toFixed(2),perViaggiatore:false,viaggiatori:1,sostenuta:false,valuta:'EUR',prezzoTotale:total,prezzoPerPasseggero:total/pax,statoPrezzo:'Prezzo ricerca Hotelbeds; soggetto a variazione',_sourceSection:'hotels',_sourceRowIds:[row._id]});
-      else data.sections.budget.push({_id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),categoria:'Hotel',descrizione:desc+' — PREZZO DA VERIFICARE / INSERIRE',costo:'0.00',perViaggiatore:false,viaggiatori:1,sostenuta:false,valuta:currency,prezzoTotale:0,prezzoPerPasseggero:0,statoPrezzo:'PREZZO DA VERIFICARE / INSERIRE',_sourceSection:'hotels',_sourceRowIds:[row._id]});
-      count++;
-    }
-    if(count>0){
-      const importedIds=new Set(matchingQueue.filter(r=>r&&r.importId).map(r=>r.importId));
-      const remaining=queue.filter(r=>{if(!r)return false;if(r.importId)return !importedIds.has(r.importId);return !matchingQueue.includes(r);});
-      if(remaining.length)localStorage.setItem('travelWorkPlannerPendingHotels_v25',JSON.stringify(remaining));else localStorage.removeItem('travelWorkPlannerPendingHotels_v25');
-      saveSessionState();
-    }
-    return count>0;
+    for(const r of queue){const h=r&&r.hotel;if(!h)continue;const row={_id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),nome:h.name||'',piattaforma:h.platform || 'Hotelbeds',pnr:'',checkin:r.checkin||'',checkout:r.checkout||'',indirizzo:h.address||'',maps:h.url||'',_hotelSourceId:h.id||''};data.sections.hotels.push(row);
+      const pax=Math.max(1,Number(r.adults)||2),rooms=Math.max(1,Number(r.rooms)||1),total=Number(h.total!=null?h.total:h.price);const currency=String(h.currency||'EUR').toUpperCase();let desc=`Hotel ${h.name||''} — ${r.checkin||''} → ${r.checkout||''}`;if(Number.isFinite(total)&&total>=0&&currency==='EUR'){data.sections.budget.push({_id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),categoria:'Hotel',descrizione:desc+` — totale ${total.toFixed(2)} EUR`,costo:(total).toFixed(2),perViaggiatore:false,viaggiatori:1,sostenuta:false,valuta:'EUR',prezzoTotale:total,prezzoPerPasseggero:total/pax,statoPrezzo:'Prezzo ricerca Hotelbeds; soggetto a variazione',_sourceSection:'hotels',_sourceRowIds:[row._id]});}else{data.sections.budget.push({_id:(window.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),categoria:'Hotel',descrizione:desc+' — PREZZO DA VERIFICARE / INSERIRE',costo:'0.00',perViaggiatore:false,viaggiatori:1,sostenuta:false,valuta:currency,prezzoTotale:0,prezzoPerPasseggero:0,statoPrezzo:'PREZZO DA VERIFICARE / INSERIRE',_sourceSection:'hotels',_sourceRowIds:[row._id]});}count++;}
+    localStorage.removeItem('travelWorkPlannerPendingHotels_v25');return count>0;
   }catch(e){console.warn('Importazione hotel fallita',e);return false;}
 }
 
@@ -1453,13 +1384,8 @@ async function loadData(){
 async function clearAll(){
   if(!confirm('Ripulire tutti i campi del viaggio corrente? Il viaggio resterà nell’elenco.'))return;
   try{
-    // Mantiene il viaggio (ID), il nome del viaggio e gli allegati,
-    // ma svuota esclusivamente i campi, le date e le righe del viaggio.
-    const preservedTitle = data?.title || '';
-    const preservedFiles = Array.isArray(data?.globalFiles) ? data.globalFiles : [];
+    // Mantiene il viaggio (ID) ma svuota esclusivamente i suoi campi e le righe.
     const cleaned=blankTrip();
-    cleaned.title = preservedTitle;
-    cleaned.globalFiles = preservedFiles;
     data=cleaned;
     if(tripArchive && activeTripId){
       tripArchive.trips[activeTripId]=data;
