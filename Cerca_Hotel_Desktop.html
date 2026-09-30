@@ -1,6 +1,6 @@
-<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Travel Work Planner — Cerca hotel</title><style>
-*{box-sizing:border-box}body{margin:0;background:#f4f6f8;color:#17202a;font-family:Segoe UI,Arial,sans-serif}.wrap{max-width:1450px;margin:auto;padding:24px}header{background:#111827;color:#fff;border-radius:18px;padding:24px;margin-bottom:18px}h1{margin:0 0 6px;font-size:28px}.card{background:#fff;border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 3px 16px #00000010}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.f label{display:block;font-weight:700;margin-bottom:6px}.f input,.f select{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:9px;font-size:15px;background:#fff}.check{display:flex;align-items:center;gap:8px;margin-top:28px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}button{border:0;border-radius:9px;padding:11px 16px;font-weight:700;cursor:pointer;background:#0f766e;color:#fff}button.secondary{background:#475569}button.light{background:#e2e8f0;color:#0f172a}.status{margin-top:12px;padding:11px;border-radius:9px;background:#f1f5f9}.muted{color:#64748b}.ok{padding:14px;border-radius:10px;background:#ecfdf5;color:#065f46}.warn{padding:14px;border-radius:10px;background:#fffbeb;color:#92400e}.err{padding:14px;border-radius:10px;background:#fef2f2;color:#991b1b}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:1050px}.table th,.table td{padding:10px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}.table th{background:#f8fafc}.price{font-size:18px;font-weight:800}.small{font-size:12px;color:#64748b}.empty{padding:30px;text-align:center;color:#64748b}.suggestions{position:absolute;z-index:10;left:0;right:0;background:#fff;border:1px solid #cbd5e1;border-radius:10px;margin-top:4px;box-shadow:0 8px 20px #0002}.suggestion{padding:10px 12px;cursor:pointer}.suggestion:hover{background:#f1f5f9}.relative{position:relative}@media(max-width:900px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.grid{grid-template-columns:1fr}.wrap{padding:10px}}
-.busy-overlay{position:fixed;inset:0;background:rgba(15,23,42,.58);display:flex;align-items:center;justify-content:center;z-index:9999}.busy-overlay.hidden{display:none}.busy-box{background:#fff;border-radius:18px;padding:28px 34px;box-shadow:0 18px 60px rgba(0,0,0,.28);text-align:center;min-width:320px}.spinner{width:42px;height:42px;border:4px solid #dbe3ea;border-top-color:#2563eb;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}.busy-title{font-size:20px;font-weight:700}.busy-text{margin-top:7px;color:#52606d}</style>
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Travel Work Planner — Cerca voli</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f4f6f8;color:#17202a;font-family:Segoe UI,Arial,sans-serif}.wrap{max-width:1450px;margin:auto;padding:24px}header{background:#111827;color:#fff;border-radius:18px;padding:24px;margin-bottom:18px}h1{margin:0 0 6px;font-size:28px}h2{margin:0 0 14px}.card{background:#fff;border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 3px 16px #00000010}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.f label{display:block;font-weight:700;margin-bottom:6px}.f input,.f select{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:9px;font-size:15px;background:#fff}.check{display:flex;align-items:center;gap:8px;margin-top:28px}.check input{width:auto}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}button{border:0;border-radius:9px;padding:11px 16px;font-weight:700;cursor:pointer;background:#0f766e;color:#fff}button.secondary{background:#475569}button.light{background:#e2e8f0;color:#0f172a}.status{margin-top:12px;padding:11px;border-radius:9px;background:#f1f5f9}.muted{color:#64748b}.ok{padding:14px;border-radius:10px;background:#ecfdf5;color:#065f46}.warn{padding:14px;border-radius:10px;background:#fffbeb;color:#92400e}.err{padding:14px;border-radius:10px;background:#fef2f2;color:#991b1b}.table-wrap{overflow:auto}.results{width:100%;border-collapse:collapse;min-width:1050px}.results th,.results td{padding:11px 9px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}.results th{background:#f8fafc;position:sticky;top:0}.airline{font-weight:800}.price{font-weight:900;font-size:17px}.route{font-weight:800}.small{font-size:12px;color:#64748b}.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#ecfeff;color:#155e75;font-size:12px;font-weight:700;margin:2px}.selected{outline:2px solid #0f766e}.empty{text-align:center;padding:35px;color:#64748b}.topbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.link{color:#0f766e;font-weight:700;text-decoration:none}.hidden{display:none}.picker{position:relative;z-index:10}.picker:focus-within{z-index:10000}.suggestions{position:absolute;z-index:9999;left:0;right:0;top:100%;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 20px #0002;max-height:280px;overflow:auto}.suggestion{display:block;width:100%;padding:9px 11px;border:0;border-bottom:1px solid #eef2f7;cursor:pointer;background:#fff;color:#17202a;text-align:left;font:inherit;pointer-events:auto}.suggestion:hover{background:#f1f5f9}.suggestion b{font-size:13px}.suggestion span{display:block;font-size:11px;color:#64748b;margin-top:2px}.busy-overlay{position:fixed;inset:0;background:rgba(15,23,42,.48);z-index:50000;display:flex;align-items:center;justify-content:center;padding:20px}.busy-box{background:#fff;border-radius:16px;box-shadow:0 20px 60px #0005;padding:26px 30px;max-width:520px;width:100%;text-align:center}.spinner{width:42px;height:42px;border:4px solid #cbd5e1;border-top-color:#0f766e;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}@keyframes spin{to{transform:rotate(360deg)}}.busy-title{font-size:19px;font-weight:900;margin-bottom:6px}.busy-text{color:#475569}.busy-overlay.hidden{display:none}@media(max-width:1050px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:650px){.grid{grid-template-columns:1fr}.wrap{padding:12px}}
+</style>
 <style id="tw-pro-theme">
 :root{--tw-navy:#092b4c;--tw-blue:#178ff0;--tw-bg:#f3f7fb;--tw-line:#dfe8f1;--tw-text:#102b46;--tw-muted:#607b96}
 body{background:var(--tw-bg)!important;color:var(--tw-text)!important;font-family:"Segoe UI",Arial,sans-serif!important}
@@ -19,12 +19,14 @@ body>.wrap button,body>.container button{border-radius:10px!important;padding:11
 body>.wrap button:not(.secondary):not(.light),body>.container button:not(.secondary):not(.light){background:#138f8a!important}
 body>.wrap button.secondary,body>.container button.secondary{background:#42566e!important}
 body>.wrap button.light,body>.container button.light{background:#e6edf5!important;color:#17324c!important}
-@media(max-width:900px){.tw-sidebar{position:relative;width:auto;min-height:auto;padding:12px}.tw-side-brand{padding-bottom:12px;border-bottom:0}.tw-nav{display:grid;grid-template-columns:repeat(5,1fr);margin-top:5px}.tw-nav a{justify-content:center;padding:9px 4px;font-size:11px}.tw-side-bottom{display:none}body>.wrap,body>.container{margin-left:0!important;padding-left:12px!important;padding-right:12px!important}}
+@media(max-width:900px){.tw-sidebar{position:relative;width:auto;min-height:auto;padding:12px}.tw-side-brand{padding-bottom:12px;border-bottom:0}.tw-nav{display:grid;grid-template-columns:repeat(5,1fr);margin-top:5px}.tw-nav a{justify-content:center;padding:9px 4px;font-size:11px}.tw-nav a span{width:auto}.tw-side-bottom{display:none}body>.wrap,body>.container{margin-left:0!important;padding-left:12px!important;padding-right:12px!important}}
 </style>
+
 <style id="tw-page-photo">
-body>.wrap>header,body>.container>header{background-image:linear-gradient(90deg,rgba(7,35,60,.94),rgba(7,35,60,.58),rgba(7,35,60,.18)),url('home-hotel.jpg')!important;background-size:cover!important;background-position:center!important;padding:24px 28px!important;min-height:118px}
+body>.wrap>header,body>.container>header{background-image:linear-gradient(90deg,rgba(7,35,60,.94),rgba(7,35,60,.58),rgba(7,35,60,.18)),url('home-flight.jpg')!important;background-size:cover!important;background-position:center!important;padding:24px 28px!important;min-height:118px}
 body>.wrap>header .link,body>.container>header a{color:#75d0ff!important}
 </style>
+
 <style id="tw-top-navigation-v46">
 :root{--tw-navy:#092b4c;--tw-blue:#178ff0;--tw-cyan:#38a9f4;--tw-bg:#f3f7fb;--tw-line:#dfe8f1;--tw-text:#102b46;--tw-muted:#607b96}
 .tw-sidebar{display:none!important}
@@ -38,6 +40,8 @@ body{padding-top:0!important}
 .tw-home-old-nav,.topbar{ }
 @media(max-width:900px){.tw-topnav{height:60px;padding:0 12px;gap:12px}.tw-topbrand{font-size:15px}.tw-toplogo{width:32px;height:32px}.tw-tabs{overflow-x:auto}.tw-tabs a{font-size:12px;padding:0 10px;white-space:nowrap}.tw-topstatus{display:none}body>.wrap,body>.container{padding-left:12px!important;padding-right:12px!important}.tw-tabs::-webkit-scrollbar{display:none}}
 @media print{.tw-topnav{display:none!important}body>.wrap,body>.container{margin:0!important;padding:0!important;max-width:none!important}.topbar{display:none!important}}
+
+.stop-detail{margin-top:6px;padding:6px 7px;background:#f4f8fb;border-left:3px solid #1b73c9;border-radius:5px;line-height:1.25}.stop-detail b{color:#0b477a}
 </style>
 <script src="cloud-access.js"></script>
 <link rel="manifest" href="manifest.webmanifest">
@@ -53,20 +57,224 @@ body{padding-top:0!important}
   </div>
   <div class="tw-topstatus">USB · Offline</div>
 </nav>
-<div id="busyOverlay" class="busy-overlay hidden" aria-live="assertive" aria-busy="true"><div class="busy-box"><div class="spinner"></div><div class="busy-title">Attendi, ricerca in corso…</div><div id="busyText" class="busy-text">Sto interrogando Hotelbeds. Non cliccare nuovamente.</div></div></div><div class="wrap"><header><h1>🏨 Cerca hotel</h1><div>Ricerca disponibilità e prezzi e importa la soluzione scelta nel Travel Planner.</div></header>
-<div class="card"><div class="grid">
-<div class="f relative" style="grid-column:span 2"><label>Destinazione</label><input id="destination" autocomplete="off" placeholder="Città, zona o destinazione"><div id="destinationSuggestions" class="suggestions" hidden></div></div>
-<div class="f"><label>Check-in</label><input id="checkin" type="date"></div><div class="f"><label>Check-out</label><input id="checkout" type="date"></div>
-<div class="f"><label>Adulti</label><input id="adults" type="number" min="1" max="20" value="2"></div><div class="f"><label>Bambini</label><input id="children" type="number" min="0" max="20" value="0"></div><div class="f"><label>Camere</label><input id="rooms" type="number" min="1" max="10" value="1"></div>
-<div class="f"><label>Prezzo max / notte (€)</label><input id="maxPrice" type="number" min="0" step="1" placeholder="Nessun limite"></div><div class="f"><label>Stelle minime</label><select id="stars"><option value="">Indifferente</option><option value="3">3+</option><option value="4">4+</option><option value="5">5</option></select></div>
-<div class="f"><label>Raggio ricerca</label><select id="radius"><option value="10">10 km</option><option value="20" selected>20 km</option><option value="50">50 km</option></select></div><div class="f"><label>Ordina per</label><select id="sort"><option value="price">Prezzo crescente</option><option value="review_score">Recensioni</option><option value="stars">Stelle</option></select></div>
-<div class="f check"><input id="breakfast" type="checkbox"><label for="breakfast">Colazione inclusa</label></div><div class="f check"><input id="freeCancellation" type="checkbox"><label for="freeCancellation">Cancellazione gratuita</label></div>
-</div><div class="actions"><button id="searchBtn" onclick="searchHotels()">🔎 Cerca hotel</button><button class="secondary" onclick="clearAll()">Pulisci</button><button class="light" onclick="location.href='Home.html'">⌂ Home</button><button class="light" onclick="location.href='Travel_Planner.html'">← Travel Planner</button></div><div id="status" class="status">Provider: Hotelbeds. La ricerca usa disponibilità e prezzi real-time; il pacchetto non effettua prenotazioni. Il piano di valutazione Hotelbeds ha una quota di 50 richieste/giorno.</div></div>
-<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><h2 style="margin:0">Risultati</h2><span id="count" class="muted"></span></div><div id="results" class="empty">Nessuna ricerca eseguita.</div></div><div id="importBox" class="card"><div class="muted">Seleziona un hotel per importarlo nel Planner e nel budget.</div></div></div>
-<script>
-const $=id=>document.getElementById(id);let busy=false,offers=[],selected=null;function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}function setBusy(v,msg){busy=v;$('searchBtn').disabled=v;const ov=$('busyOverlay');if(ov){$('busyText').textContent=msg||'Ricerca in corso…';ov.classList.toggle('hidden',!v)}if(v&&msg)$('status').innerHTML='<div class="warn">'+esc(msg)+'</div>'}function money(v,c){if(v==null)return 'Prezzo non disponibile';try{return new Intl.NumberFormat('it-IT',{style:'currency',currency:c||'EUR'}).format(Number(v))}catch(e){return esc(v)+' '+esc(c||'')}}function setupPicker(){const input=$('destination'),box=$('destinationSuggestions');let timer;input.addEventListener('input',()=>{clearTimeout(timer);input.dataset.id='';const q=input.value.trim();if(q.length<3){box.hidden=true;return}timer=setTimeout(()=>suggest(q),600)});box.addEventListener('pointerdown',e=>{const el=e.target.closest('.suggestion');if(!el)return;e.preventDefault();const p=el._place;input.value=p.name;input.dataset.id=p.id;input.dataset.lat=p.lat;input.dataset.lon=p.lon;box.hidden=true});document.addEventListener('pointerdown',e=>{if(!box.contains(e.target)&&e.target!==input)box.hidden=true})}async function suggest(q){const box=$('destinationSuggestions');try{const r=await fetch('/api/hotel-place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});const d=await r.json();if(!r.ok)throw Error(d.error||'Suggerimenti non disponibili');const arr=d.places||[];box.innerHTML=arr.map((p,i)=>`<div class="suggestion"><b>${esc(p.name)}</b><div class="small">${esc(p.country||'')}</div></div>`).join('')||'<div class="suggestion">Nessun risultato</div>';arr.forEach((p,i)=>box.querySelectorAll('.suggestion')[i]._place=p);box.hidden=false}catch(e){box.hidden=true}}async function resolveDestination(){const input=$('destination');if(input.dataset.id)return {id:input.dataset.id,lat:Number(input.dataset.lat),lon:Number(input.dataset.lon),name:input.value.trim()};const r=await fetch('/api/hotel-place-suggestions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:input.value.trim()})});const d=await r.json();if(!r.ok)throw Error(d.error||'Impossibile risolvere la destinazione');const p=(d.places||[])[0];if(!p)throw Error('Destinazione non trovata');input.value=p.name;input.dataset.id=p.id;input.dataset.lat=p.lat;input.dataset.lon=p.lon;return p}function nights(){const a=new Date($('checkin').value),b=new Date($('checkout').value);return Math.max(0,Math.round((b-a)/86400000))}function render(){const box=$('results');if(!offers.length){box.innerHTML='<div class="empty">Nessun hotel trovato.</div>';return}box.innerHTML='<div class="table-wrap"><table class="table"><thead><tr><th>Hotel</th><th>Prezzo</th><th>Stelle / camera</th><th>Condizioni</th><th></th></tr></thead><tbody>'+offers.map((o,i)=>`<tr><td><b>${esc(o.name||('Hotel #'+o.id))}</b><div class="small">${esc(o.address||'')}</div><div class="small">ID ${esc(o.id||'')}</div></td><td><div class="price">${money(o.price,o.currency)}</div><div class="small">${esc(o.priceLabel||'prezzo ricerca')} · ${o.nights||nights()} notti</div></td><td>${o.stars?('★'.repeat(Number(o.stars))):'—'}<div class="small">${o.room?esc(o.room):''}</div></td><td><div>${o.breakfast?'✓ Colazione inclusa':''}</div><div>${o.board?'✓ '+esc(o.board):''}</div><div class="small">${o.rateType==='RECHECK'?'⚠ Prezzo da ricontrollare prima di un eventuale acquisto':'Disponibilità restituita da Hotelbeds'}</div></td><td><button onclick="selectHotel(${i})">Seleziona</button></td></tr>`).join('')+'</tbody></table></div>';$('count').textContent=offers.length+' risultati'}async function searchHotels(){if(busy)return;setBusy(true,'Ricerca hotel in corso…');try{const dest=await resolveDestination();const ci=$('checkin').value,co=$('checkout').value;if(!ci||!co)throw Error('Inserisci check-in e check-out.');if(co<=ci)throw Error('Il check-out deve essere successivo al check-in.');const body={destination: $('destination').value.trim(),destinationId:dest.id,lat:dest.lat,lon:dest.lon,checkin:ci,checkout:co,adults:Number($('adults').value)||2,rooms:Number($('rooms').value)||1,children:Number($('children').value)||0,maxPrice:$('maxPrice').value,stars:$('stars').value,breakfast:$('breakfast').checked,radius:Number($('radius').value)||20,sort:$('sort').value,currency:'EUR'};const ctl=new AbortController();const timer=setTimeout(()=>ctl.abort(),40000);let r;try{r=await fetch('/api/search-hotels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctl.signal})}catch(e){if(e.name==='AbortError')throw Error('Hotelbeds non ha risposto entro 40 secondi. Controlla certificato mTLS, ambiente TEST e connessione.');throw e}finally{clearTimeout(timer)}const d=await r.json();if(!r.ok)throw Error(d.error||'Ricerca fallita');offers=d.offers||[];render();$('status').innerHTML=`<div class="ok"><b>${offers.length} hotel trovati.</b> Disponibilità e prezzi restituiti da Hotelbeds al momento della ricerca; possono cambiare. Richieste Hotelbeds residue oggi: ${esc(d.remainingDaily)}.</div>`}catch(e){offers=[];$('results').innerHTML='<div class="err">'+esc(e.message)+'</div>';$('status').innerHTML='<div class="err">'+esc(e.message)+'</div>'}finally{setBusy(false)}}function selectHotel(i){selected=offers[i];if(!selected)return;$('importBox').innerHTML='<div class="ok"><b>'+esc(selected.name||'Hotel')+'</b><br>'+money(selected.price,selected.currency)+' · '+esc(selected.nights||nights())+' notti<br><span class="small">La prenotazione si completa sul sito del provider.</span><div class="actions"><button onclick="importHotel()">＋ Importa nel Travel Planner</button>'+(selected.url?`<button class="secondary" onclick="window.open(${JSON.stringify(selected.url)},'_blank')">Apri pagina hotel</button>`:'')+'</div></div>'}
-function importHotel(){if(!selected)return;let tripId='';try{const raw=localStorage.getItem('TravelWorkPlanner_Trips_v1');if(raw){const archive=JSON.parse(raw);if(archive&&archive.activeTripId)tripId=archive.activeTripId}}catch(e){}const payload={importId:crypto.randomUUID?crypto.randomUUID():Date.now().toString(36),tripId:tripId,source:'Hotelbeds',destination:$('destination').value,checkin:$('checkin').value,checkout:$('checkout').value,adults:Number($('adults').value)||2,rooms:Number($('rooms').value)||1,hotel:selected};let q=[];try{q=JSON.parse(localStorage.getItem('travelWorkPlannerPendingHotels_v25')||'[]');if(!Array.isArray(q))q=[]}catch(e){}q.push(payload);localStorage.setItem('travelWorkPlannerPendingHotels_v25',JSON.stringify(q));$('importBox').innerHTML='<div class="ok"><b>✓ Hotel aggiunto alla coda.</b> Apertura del Travel Planner…</div>';setTimeout(()=>location.href='Travel_Planner.html?hotel=1',250)}
-function clearAll(){if(busy)return;offers=[];selected=null;$('results').innerHTML='<div class="empty">Nessuna ricerca eseguita.</div>';$('importBox').innerHTML='<div class="muted">Seleziona un hotel per importarlo nel Planner e nel budget.</div>';$('count').textContent='';$('status').textContent='Pulito.'}setupPicker();const now=new Date();$('checkin').value=now.toISOString().slice(0,10);const tomorrow=new Date(now.getTime()+86400000);$('checkout').value=tomorrow.toISOString().slice(0,10);
+
+<div class="wrap"><header><div class="topbar"><div><h1>✈️ Travel Work Planner — Cerca voli</h1><p style="margin:0;opacity:.85">Ricerca diretta su Skyscanner tramite Apify. Questa versione esegue ricerche e importazione nel Planner: non contiene funzioni di prenotazione o acquisto.</p></div><a class="link" href="Travel_Planner.html">Apri Travel Planner →</a></div></header>
+<div class="card"><h2>1. Imposta la ricerca</h2><div class="grid"><div class="f picker"><label>Da aeroporto/città</label><input id="origin" placeholder="FCO, Roma, Milano…" autocomplete="off"><div id="originSuggestions" class="suggestions hidden"></div></div><div class="f picker"><label>A aeroporto/città</label><input id="destination" placeholder="LHR, Londra, Parigi…" autocomplete="off"><div id="destinationSuggestions" class="suggestions hidden"></div></div><div class="f"><label>Andata</label><input id="departure" type="date"></div><div class="f"><label>Ritorno (facoltativo)</label><input id="return" type="date"></div><div class="f"><label>Passeggeri</label><input id="pax" type="number" min="1" max="9" value="1"></div><div class="f"><label>Classe</label><select id="cabin"><option value="economy">Economy</option><option value="premium_economy">Premium Economy</option><option value="business">Business</option><option value="first">First</option></select></div><label class="check"><input id="direct" type="checkbox"> Solo voli diretti</label><div class="f"><label>Bagaglio richiesto</label><select id="baggage"><option value="any">Indifferente</option><option value="cabin">Bagaglio in cabina incluso</option><option value="checked">Bagaglio da stiva incluso</option><option value="both">Cabina + stiva incluse</option></select></div></div><div class="actions"><button class="light" onclick="location.href='Home.html'">⌂ Home</button><button onclick="searchFlights()">🔎 Cerca voli</button><button class="secondary" onclick="clearResults()">Pulisci risultati</button></div><div id="status" class="status muted">Inserisci i parametri e avvia la ricerca.</div></div>
+<div class="card"><div class="topbar"><h2 style="margin:0">2. Risultati</h2><div id="count" class="muted"></div></div><div id="results" class="table-wrap"><div class="empty">Nessuna ricerca eseguita.</div></div></div>
+<div class="card"><h2>3. Importazione</h2><div id="importBox" class="muted">Scegli un'offerta e premi “Importa nel Planner”. Ogni importazione viene aggiunta ai voli già presenti.</div></div>
+<div class="card"><div class="muted"><b>Nota:</b> Skyscanner tramite Apify fornisce itinerari, prezzi, compagnie, scali, durate e segmenti. I prezzi sono indicativi e possono cambiare quando si passa al fornitore; i dati sui bagagli non sono garantiti dal feed e vanno verificati prima dell’acquisto.</div></div>
+</div><div id="busyOverlay" class="busy-overlay hidden" aria-live="assertive" aria-busy="true"><div class="busy-box"><div class="spinner"></div><div class="busy-title">Attendi, ricerca in corso…</div><div id="busyText" class="busy-text">Sto interrogando Skyscanner tramite Apify. Non cliccare nuovamente.</div></div></div><script>
+const $=id=>document.getElementById(id);
+
+// API di ricerca: questa pagina deve chiamare il backend autenticato.
+function formBody(){
+  return {
+    origin:$('origin').value.trim(),
+    destination:$('destination').value.trim(),
+    departure_date:$('departure').value,
+    return_date:$('return').value,
+    passengers:Number($('pax').value)||1,
+    cabin:$('cabin').value||'economy',
+    direct:$('direct').checked,
+    baggage:$('baggage').value||'any',
+    currency:'EUR',
+    market:'IT',
+    locale:'it-IT'
+  };
+}
+async function resolvePlace(id){
+  const input=$(id);
+  const raw=input.value.trim();
+  const stored=(input.dataset.iata||'').trim().toUpperCase();
+  if(stored && /^[A-Z]{3}$/.test(stored)) return stored;
+  if(/^[A-Za-z]{3}$/.test(raw)) return raw.toUpperCase();
+  const arr=localAirportSuggestions(raw);
+  if(arr.length && arr[0].iata) return String(arr[0].iata).toUpperCase();
+  throw new Error(`Impossibile identificare l'aeroporto di ${id==='origin'?'partenza':'arrivo'}. Seleziona un suggerimento o inserisci un codice IATA.`);
+}
+async function apiSearch(body){
+  const r=await fetch('/api/search-flights',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store'});
+  let d=null; try{d=await r.json();}catch(e){}
+  if(!r.ok) throw new Error(d?.error||`Ricerca voli non riuscita (HTTP ${r.status})`);
+  if(!d || d.ok===false) throw new Error(d?.error||'Il servizio voli non ha restituito risultati.');
+  return d;
+}
+const AIRPORT_CACHE_KEY='twp-airports-world-v1';
+const STATIC_AIRPORTS=[
+['FCO','Roma Fiumicino','Roma','IT'],['CIA','Roma Ciampino','Roma','IT'],['MXP','Milano Malpensa','Milano','IT'],['LIN','Milano Linate','Milano','IT'],['BGY','Bergamo Orio al Serio','Bergamo','IT'],['NAP','Napoli Capodichino','Napoli','IT'],['VCE','Venezia Marco Polo','Venezia','IT'],['BLQ','Bologna Guglielmo Marconi','Bologna','IT'],['TRN','Torino Caselle','Torino','IT'],['FLR','Firenze Peretola','Firenze','IT'],['PRG','Václav Havel Airport Prague','Praga','CZ'],['LHR','London Heathrow','Londra','GB'],['LGW','London Gatwick','Londra','GB'],['CDG','Paris Charles de Gaulle','Parigi','FR'],['ORY','Paris Orly','Parigi','FR'],['MAD','Madrid Barajas','Madrid','ES'],['BCN','Barcelona El Prat','Barcellona','ES'],['AMS','Amsterdam Schiphol','Amsterdam','NL'],['FRA','Frankfurt','Francoforte','DE'],['MUC','Munich','Monaco','DE'],['VIE','Vienna','Vienna','AT'],['ZRH','Zurich','Zurigo','CH'],['BRU','Brussels','Bruxelles','BE'],['LIS','Lisbon','Lisbona','PT'],['ATH','Athens','Atene','GR'],['DUB','Dublin','Dublino','IE'],['IST','Istanbul','Istanbul','TR']
+].map(([iata,name,city,country])=>({iata,name,city,country,type:'airport',keywords:''}));
+let AIRPORTS=[...STATIC_AIRPORTS];
+const foldAirport=v=>String(v||'').toLocaleLowerCase('it').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+function mergeAirportCatalog(rows){
+ const map=new Map();
+ for(const p of rows||[]) { if(!p||!p.iata) continue; const code=String(p.iata).toUpperCase(); if(!/^[A-Z]{3}$/.test(code)) continue; map.set(code,{...p,iata:code}); }
+ for(const p of STATIC_AIRPORTS) if(!map.has(p.iata)) map.set(p.iata,p);
+ AIRPORTS=[...map.values()];
+}
+const CITY_SEARCH_ALIASES={
+  praga:['praga','prague','praha'],prague:['praga','prague','praha'],praha:['praga','prague','praha'],
+  roma:['roma','rome'],rome:['roma','rome'],milano:['milano','milan'],milan:['milano','milan'],
+  napoli:['napoli','naples'],naples:['napoli','naples'],venezia:['venezia','venice'],venice:['venezia','venice'],
+  firenze:['firenze','florence'],florence:['firenze','florence'],torino:['torino','turin'],turin:['torino','turin'],
+  genova:['genova','genoa'],genoa:['genova','genoa'],parigi:['parigi','paris'],paris:['parigi','paris'],
+  londra:['londra','london'],london:['londra','london'],vienna:['vienna','wien'],wien:['vienna','wien'],
+  monaco:['monaco','munich','munchen','muenchen'],munich:['munich','monaco','munchen','muenchen'],
+  francoforte:['francoforte','frankfurt'],frankfurt:['frankfurt','francoforte'],
+  barcellona:['barcellona','barcelona'],barcelona:['barcelona','barcellona'],lisbona:['lisbona','lisbon'],lisbon:['lisbon','lisbona'],
+  atene:['atene','athens'],athens:['athens','atene'],bruxelles:['bruxelles','brussels'],brussels:['brussels','bruxelles'],
+  zurigo:['zurigo','zurich'],zurich:['zurich','zurigo'],
+  newyork:['new york','newyork','nyc'],newyorkcity:['new york','newyork','nyc'],nyc:['new york','newyork','nyc'],
+  boston:['boston'],chicago:['chicago'],losangeles:['los angeles','losangeles','la'],sanfrancisco:['san francisco','sanfrancisco','sf'],
+  washington:['washington','washington dc','washington d.c.'],miami:['miami'],atlanta:['atlanta'],dallas:['dallas'],houston:['houston'],
+  seattle:['seattle'],denver:['denver'],philadelphia:['philadelphia'],toronto:['toronto'],montreal:['montreal'],vancouver:['vancouver'],
+};
+const METRO_CITY_ALIASES={
+  milano:['milano','milan','bergamo'],milan:['milano','milan','bergamo'],
+  roma:['roma','rome','fiumicino','ciampino'],rome:['roma','rome','fiumicino','ciampino'],
+  londra:['londra','london'],london:['londra','london'],parigi:['parigi','paris'],paris:['parigi','paris']
+};
+function airportSearchAliases(n){
+ const direct=CITY_SEARCH_ALIASES[n];
+ return direct ? [...new Set(direct.map(foldAirport).filter(Boolean).concat([n]))] : [n];
+}
+function airportRank(p){return p.type==='large_airport'?30:p.type==='medium_airport'?15:0;}
+function airportEditDistance(a,b){
+ const m=a.length,n=b.length;if(!m)return n;if(!n)return m;
+ let prev=Array.from({length:n+1},(_,i)=>i),cur=new Array(n+1);
+ for(let i=1;i<=m;i++){cur[0]=i;for(let j=1;j<=n;j++)cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));[prev,cur]=[cur,prev];}
+ return prev[n];
+}
+function airportCityMatchScore(city,n,aliases){
+ if(aliases.includes(city))return 1000;
+ if(aliases.some(a=>city.startsWith(a)||a.startsWith(city)))return 920;
+ const d=airportEditDistance(city,n);
+ const maxLen=Math.max(city.length,n.length);
+ if(maxLen>=5 && d<=Math.max(1,Math.floor(maxLen*0.15)))return 760-d*20;
+ return 0;
+}
+function localAirportSuggestions(q){
+ const raw=(q||'').trim(), n=foldAirport(raw); if(!n)return [];
+ const code=raw.toUpperCase();
+ const exact=AIRPORTS.filter(p=>String(p.iata||'').toUpperCase()===code);
+ if(exact.length)return exact.slice(0,6);
+ const aliases=airportSearchAliases(n);
+ const metro=(METRO_CITY_ALIASES[n]||[]).map(foldAirport).filter(Boolean);
+ // 1) City lock: if the query identifies a city, never mix in airports from
+ // unrelated cities merely because their keywords happen to contain the text.
+ const cityScored=AIRPORTS.map(p=>{
+   const city=foldAirport(p.city);
+   return [Math.max(airportCityMatchScore(city,n,aliases), metro.includes(city)?1000:0),p];
+ }).filter(x=>x[0]>0);
+ const bestCityScore=cityScored.length?Math.max(...cityScored.map(x=>x[0])):0;
+ const cityMatches=cityScored.filter(x=>x[0]===bestCityScore).map(x=>x[1]);
+ if(cityMatches.length){
+   return cityMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
+ }
+ // 2) Airport name. Still no generic keyword substring matching.
+ const nameMatches=AIRPORTS.filter(p=>{
+   const name=foldAirport(p.name);
+   return aliases.some(a=>name===a||name.startsWith(a)||name.includes(' '+a+' '));
+ });
+ if(nameMatches.length){
+   return nameMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
+ }
+ // 3) Exact keyword only (OurAirports keywords can contain broad/unrelated
+ // phrases, so substring matching is deliberately forbidden here).
+ const keywordMatches=AIRPORTS.filter(p=>String(p.keywords||'').split(',').map(x=>foldAirport(x)).some(k=>aliases.includes(k)));
+ if(keywordMatches.length){
+   return keywordMatches.sort((a,b)=>airportRank(b)-airportRank(a)||String(a.iata).localeCompare(String(b.iata))).slice(0,6);
+ }
+ return [];
+}
+
+async function loadWorldAirportCatalog(){
+ try{
+   const cached=localStorage.getItem(AIRPORT_CACHE_KEY);
+   if(cached){const c=JSON.parse(cached);if(Array.isArray(c.airports)&&c.airports.length)mergeAirportCatalog(c.airports);}
+ }catch(e){}
+ try{
+   const r=await fetch('/api/airport-catalog',{cache:'no-store'}); const d=await r.json();
+   if(d&&Array.isArray(d.airports)&&d.airports.length){mergeAirportCatalog(d.airports);try{localStorage.setItem(AIRPORT_CACHE_KEY,JSON.stringify({version:d.indexVersion,count:d.count,downloaded:d.downloaded,airports:d.airports}));}catch(e){}}
+ }catch(e){console.warn('Catalogo aeroporti mondiale non disponibile:',e)}
+}
+loadWorldAirportCatalog();
+
+let offers=[], selected=null, searchMode='outbound', outboundOffer=null, returnOffers=[], returnOffer=null, busy=false;
+function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function money(v,c){return v==null?'—':`${Number(v).toFixed(2)} ${c||''}`.trim()}
+function setBusy(on,text){busy=!!on;const ov=$('busyOverlay');if(ov){$('busyText').textContent=text||'Operazione in corso…';ov.classList.toggle('hidden',!busy)}document.querySelectorAll('#results button').forEach(b=>b.disabled=busy);document.querySelectorAll('.actions > button').forEach(b=>b.disabled=busy);}
+function dt(x){if(!x)return '—';try{return new Date(x).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}catch{return x}}
+function sliceText(s){if(!s||!s.length)return '';const a=s[0],b=s[s.length-1];return `${a.origin||''} → ${b.destination||''}`}
+function stops(o){return (o.stops||o.slices||[]).map((x,i)=>typeof x==='number'?x:Math.max(0,(x||[]).length-1)).join(' / ')}
+function formatLayoverMs(ms){if(!Number.isFinite(ms)||ms<0)return '—';const total=Math.round(ms/60000),h=Math.floor(total/60),m=total%60;return h?`${h}h ${String(m).padStart(2,'0')}m`:`${m}m`}
+function layoverDetails(segs){
+ const out=[]; for(let i=0;i<Math.max(0,segs.length-1);i++){const a=segs[i]||{},b=segs[i+1]||{};const airport=b.origin||a.destination||'';const arr=a.arrival,dep=b.departure;const ms=(arr&&dep)?(new Date(dep).getTime()-new Date(arr).getTime()):NaN;if(airport||Number.isFinite(ms))out.push({airport,duration:formatLayoverMs(ms),arrival:dt(arr),departure:dt(dep)});}return out;
+}
+function layoverHtml(segs){const ls=layoverDetails(segs);if(!ls.length)return '<span class="small">Diretto</span>';return ls.map((x,i)=>`<div class="stop-detail"><b>Scalo ${i+1}: ${esc(x.airport||'aeroporto non indicato')}</b><br><span class="small">Arrivo: ${esc(x.arrival)} · Ripartenza: ${esc(x.departure)} · <b>Scalo: ${esc(x.duration)}</b></span></div>`).join('');}
+function bagText(b){if(!b?.known)return 'Da verificare sul vettore';const a=[];if(b.carry_on)a.push('Cabina');if(b.checked)a.push('Stiva');return a.length?a.join(' + '):'Nessun bagaglio incluso';}
+function baggageMatches(o){const need=$('baggage').value,b=o?.bags||{};if(need==='any')return true;if(!b.known)return false;if(need==='cabin')return !!b.carry_on;if(need==='checked')return !!b.checked;if(need==='both')return !!b.carry_on&&!!b.checked;return true;}
+function filterOffers(arr){const out=arr.filter(baggageMatches);return out;}
+function baggageBudgetText(b,label){if(!b?.known)return `${label}: prezzo non disponibile nel feed — DA VERIFICARE/INSERIRE`;const missing=[];if(!b.carry_on)missing.push('cabina');if(!b.checked)missing.push('stiva');return missing.length?`${label}: ${missing.join(' + ')} non incluso — prezzo da verificare`:`${label}: bagagli richiesti inclusi nel prezzo`;}
+function tagsText(o){return (o.tags||[]).map(x=>`<span class="badge">${esc(String(x).replaceAll('_',' '))}</span>`).join('')}
+function renderList(arr,mode){
+ if(!arr.length){$('results').innerHTML='<div class="empty">Nessuna soluzione disponibile.</div>';$('count').textContent='0 risultati';return;}
+ let h='<table class="results"><thead><tr><th>Compagnia / volo</th><th>Tratta</th><th>Partenza</th><th>Arrivo</th><th>Durata</th><th>Fermate</th><th>Bagagli</th><th>Prezzo</th><th></th></tr></thead><tbody>';
+ arr.forEach(o=>{const segs=o.slices?.[0]||[],s=segs[0]||{},e=segs[segs.length-1]||{};const key=encodeURIComponent(o.offerId||'');const btn=mode==='outbound'?`<button onclick="selectOutbound(decodeURIComponent('${key}'))">Scegli andata</button>`:`<button onclick="selectReturn(decodeURIComponent('${key}'))">Scegli ritorno</button>`;h+=`<tr class="${selected===o.offerId?'selected':''}"><td><div class="airline">${esc(o.airline||'Compagnia non indicata')}</div><div class="small">${esc(s.carrierCode||o.airlineCode||'')} ${esc(s.flightNumber||'')}</div>${tagsText(o)}</td><td><div class="route">${esc(sliceText(segs))}</div></td><td>${dt(s.departure)}</td><td>${dt(e.arrival)}</td><td>${esc(o.duration||'—')}</td><td><div>${esc(stops(o))}</div>${layoverHtml(segs)}</td><td>${esc(bagText(o.bags))}</td><td><div class="price">${money(o.price,o.currency)}</div><div class="small">totale per ${Number($('pax').value)||1} pax</div><div class="small">${money(o.price!=null?o.price/(Number($('pax').value)||1):null,o.currency)} / pax</div></td><td>${btn}</td></tr>`});
+ h+='</tbody></table>';$('results').innerHTML=h;$('count').textContent=`${arr.length} risultati`;
+}
+function render(){renderList(offers,'outbound')}
+function setupPicker(id){
+ const input=$(id),box=$(id+'Suggestions'); let timer=null;
+ const hide=()=>box.classList.add('hidden');
+ const show=(q)=>{
+   const arr=localAirportSuggestions(q);
+   if(input.value.trim()!==q)return;
+   if(!arr.length){
+     box.innerHTML='<div class="suggestion"><span>Nessun aeroporto trovato. Puoi inserire direttamente un codice IATA (es. FCO).</span></div>';
+   }else{
+     box.innerHTML=arr.map((p,i)=>`<div class="suggestion" data-index="${i}" role="option"><b>${esc(p.iata||'')} — ${esc(p.name||'')}</b><span>${esc(p.city||'')} · ${esc(p.country||'')}</span></div>`).join('');
+     box.querySelectorAll('.suggestion').forEach((el,i)=>el._place=arr[i]);
+   }
+   box.classList.remove('hidden');
+ };
+ input.addEventListener('input',()=>{clearTimeout(timer);input.dataset.iata='';const q=input.value.trim();hide();if(q.length<2)return;timer=setTimeout(()=>show(q),40)});
+ input.addEventListener('focus',()=>{const q=input.value.trim();if(q.length>=2)show(q)});
+ input.addEventListener('keydown',e=>{if(e.key==='Escape')hide()});
+ box.addEventListener('pointerdown',e=>{const el=e.target.closest('.suggestion');if(!el)return;e.preventDefault();const p=el._place;if(p){const code=(p.iata||'').toUpperCase();input.value=code?`${code} — ${p.name||p.city||''}`:(p.name||p.city||input.value);input.dataset.iata=code}hide()});
+ document.addEventListener('pointerdown',e=>{if(!box.contains(e.target)&&e.target!==input)hide()});
+}
+
+async function searchFlights(){
+ if(busy)return; setBusy(true,'Sto cercando i voli su Skyscanner tramite Apify…');
+ selected=null;outboundOffer=null;returnOffer=null;returnOffers=[];searchMode='outbound';
+ try{const body=formBody();body.origin=await resolvePlace('origin');body.destination=await resolvePlace('destination');$('origin').dataset.iata=body.origin;$('destination').dataset.iata=body.destination;body.baggage=$('baggage').value;if(!body.departure_date){$('status').innerHTML='<div class="err">Compila la data di andata.</div>';return}const hasReturn=!!body.return_date;$('status').innerHTML='<div class="warn"><b>Ricerca in corso…</b> Attendi la risposta di Skyscanner. Evita di cliccare più volte.</div>';$('results').innerHTML='<div class="empty">⏳ Attendo i risultati di Skyscanner…</div>';const d=await apiSearch({...body,return_date:''});offers=filterOffers(d.offers||[]);offers.forEach(o=>o.baggageExtras=[]);$('status').innerHTML=`<div class="ok"><b>1. Scegli il volo di andata.</b> ${offers.length} soluzioni disponibili${hasReturn?' · dopo la scelta cercherò il ritorno':''}. <span class="small">Prezzi da Skyscanner, soggetti a variazione.</span></div>`;render()}catch(e){offers=[];$('results').innerHTML='<div class="empty">Nessun risultato.</div>';$('status').innerHTML='<div class="err">'+esc(e.message)+'</div>'}finally{setBusy(false)}}
+async function selectOutbound(id){
+ if(busy)return; const o=offers.find(x=>x.offerId===id);if(!o)return;setBusy(true,'Hai scelto l’andata. Sto cercando il ritorno su Skyscanner…');selected=id;render();
+ try{outboundOffer=o;if(!$('return').value){showImportReady();return}$('status').innerHTML='<div class="warn"><b>Andata selezionata.</b> Sto cercando il ritorno su Skyscanner. Attendi e non cliccare nuovamente.</div>';const body=formBody();const originCode=String($('origin').dataset.iata||'').toUpperCase();const destinationCode=String($('destination').dataset.iata||'').toUpperCase();const backBody={...body,origin:destinationCode||body.destination,destination:originCode||body.origin,departure_date:body.return_date,return_date:''};const d=await apiSearch(backBody);returnOffers=filterOffers(d.offers||[]);returnOffers.forEach(x=>x.baggageExtras=[]);searchMode='return';selected=null;$('status').innerHTML=`<div class="ok"><b>2. Scegli il volo di ritorno.</b> ${returnOffers.length} soluzioni disponibili. <span class="small">Prezzi da Skyscanner, soggetti a variazione.</span></div>`;renderList(returnOffers,'return')}catch(e){$('status').innerHTML='<div class="err">'+esc(e.message)+'</div>'}finally{setBusy(false)}}
+async function selectReturn(id){if(busy)return;const o=returnOffers.find(x=>x.offerId===id);if(!o||!outboundOffer)return;setBusy(true,'Sto preparando il riepilogo del viaggio…');try{selected=id;renderList(returnOffers,'return');returnOffer=o;showImportReady();}finally{setBusy(false)}}
+function showImportReady(){
+ const pax=Number($('pax').value)||1;
+ const isRound=!!returnOffer;
+ const sameCurrency=!returnOffer||outboundOffer.currency===returnOffer.currency;
+ const total=sameCurrency?(Number(outboundOffer?.price)||0)+(Number(returnOffer?.price)||0):null;
+ $('status').innerHTML=isRound?`<div class="ok"><b>Andata e ritorno selezionati.</b> Totale indicativo ${total==null?'—':money(total,outboundOffer.currency)} per ${pax} pax. <span class="small">Il prezzo è quello mostrato da Skyscanner al momento della ricerca e può cambiare.</span></div>`:`<div class="ok"><b>Volo di sola andata selezionato.</b> ${money(outboundOffer.price,outboundOffer.currency)} per ${pax} pax.</div>`;
+ const backHtml=isRound?`<br><b>Ritorno:</b> ${esc(sliceText(returnOffer.slices?.[0]||[]))} — ${money(returnOffer.price,returnOffer.currency)}`:'';
+ $('importBox').innerHTML='<div class="ok"><b>Andata:</b> '+esc(sliceText(outboundOffer.slices?.[0]||[]))+' — '+money(outboundOffer.price,outboundOffer.currency)+backHtml+'<div class="actions"><button onclick="importSelectedTrip()">＋ Importa nel Travel Planner</button></div></div>'
+}
+function importSelectedTrip(){
+ if(busy||!outboundOffer)return; setBusy(true,'Sto aggiungendo il volo al Travel Planner…');
+ const out=outboundOffer.slices?.[0]||[],back=returnOffer?.slices?.[0]||[];
+ const isRound=!!returnOffer;
+ if(isRound&&outboundOffer.currency!==returnOffer.currency){alert('Le due tratte hanno valute diverse: non posso sommare i prezzi automaticamente.');return}
+ const total=isRound?(Number(outboundOffer.price)||0)+(Number(returnOffer.price)||0):(Number(outboundOffer.price)||0);
+ const combinedId=`${outboundOffer.offerId}|${returnOffer?.offerId||''}`;
+ const payload={importId:(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),source:'Skyscanner via Apify',sourceOfferId:combinedId,airline:outboundOffer.airline,returnAirline:returnOffer?.airline||'',origin:out[0]?.origin||'',destination:out[out.length-1]?.destination||'',price:total,currency:outboundOffer.currency,passengers:Number($('pax').value)||1,baggageRequest:$('baggage').value,priceStatus:isRound?'Somma delle due ricerche one-way Skyscanner; prezzo soggetto a variazione':'Prezzo Skyscanner; soggetto a variazione',bags:{carry_on:Number(outboundOffer.bags?.carry_on||0),checked:Number(outboundOffer.bags?.checked||0),known:Boolean(outboundOffer.bags?.known)},returnBags:{carry_on:Number(returnOffer?.bags?.carry_on||0),checked:Number(returnOffer?.bags?.checked||0),known:Boolean(returnOffer?.bags?.known)},baggageExtras:[],segments:out.map(s=>({origin:s.origin,destination:s.destination,departure:s.departure,arrival:s.arrival,flightNumber:s.flightNumber,operatingCarrier:s.carrier,marketingCarrier:s.carrier,marketingCarrierCode:s.carrierCode})),returnSegments:back.map(s=>({origin:s.origin,destination:s.destination,departure:s.departure,arrival:s.arrival,flightNumber:s.flightNumber,operatingCarrier:s.carrier,marketingCarrier:s.carrier,marketingCarrierCode:s.carrierCode}))};
+ let queue=[];try{queue=JSON.parse(localStorage.getItem('travelWorkPlannerPendingFlights_v25')||'[]');if(!Array.isArray(queue))queue=[]}catch(e){queue=[]}
+ queue.push(payload);localStorage.setItem('travelWorkPlannerPendingFlights_v25',JSON.stringify(queue));$('importBox').innerHTML='<div class="ok"><b>✓ Volo aggiunto alla coda.</b> Apertura del Travel Planner…</div>';setTimeout(()=>location.href='Travel_Planner.html?flight=1',250)
+}
+function clearResults(){if(busy)return;offers=[];returnOffers=[];outboundOffer=null;returnOffer=null;selected=null;$('results').innerHTML='<div class="empty">Nessuna ricerca eseguita.</div>';$('count').textContent='';$('importBox').textContent='Scegli un volo e premi il pulsante di selezione.';$('status').textContent='Pulito.'}
+setupPicker('origin');setupPicker('destination');
+
 </script>
 <script>
 (()=>{const f=location.pathname.split(/[\\/]/).pop()||"Home.html";const map={"Home.html":"home","Cerca_Voli_Desktop.html":"voli","Cerca_Hotel_Desktop.html":"hotel","Cerca_Autonoleggio_Desktop.html":"auto","Travel_Planner.html":"planner"};document.querySelector(`.tw-tabs a[data-page="${map[f]||"home"}"]`)?.classList.add("active");})();

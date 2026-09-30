@@ -37,7 +37,7 @@ const configs = {
   ['nome','Nome','text'],['cognome','Cognome','text'],['ruolo','Ruolo','text'],['email','Email','email'],['telefono','Telefono','tel']]},
  flights:{title:'VOLI', add:'＋ Aggiungi volo', cols:[
   ['tipoVolo','Tipo','text'],['compagnia','Compagnia','text'],['numeroVolo','Numero volo','text'],['pnr','PNR','text'],['partenza','Aeroporto partenza','text'],['arrivo','Aeroporto arrivo','text'],
-  ['dataPartenza','Data partenza','date'],['oraPartenza','Ora partenza','time'],['dataArrivo','Data arrivo','date'],['oraArrivo','Ora arrivo','time'],['scali','Scalo','text'],['tempiScalo','Tempo scalo','text'],
+  ['dataPartenza','Data partenza','date'],['oraPartenza','Ora partenza','time'],['dataArrivo','Data arrivo','date'],['oraArrivo','Ora arrivo','time'],
   ['zaino','Zaino cabina','check'],['cabina','Bagaglio cabina','check'],['stiva','Bagaglio stiva','check'],['priority','Priority','check']]},
  hotels:{title:'HOTEL', add:'＋ Aggiungi hotel', cols:[
   ['nome','Nome hotel','text'],['piattaforma','Piattaforma prenotazione','text'],['pnr','PNR','text'],['checkin','Check-in','date'],['checkout','Check-out','date'],['indirizzo','Indirizzo','text'],['maps','Google Maps','url']]},
@@ -921,12 +921,7 @@ async function createDossierPDF(){
     const airportCode4=v=>{const m=String(v||'').match(/^\s*([A-Za-z]{3})\s*[—-]/);return m?m[1].toUpperCase():(/^[A-Za-z]{3}$/.test(String(v||'').trim())?String(v).trim().toUpperCase():'')};
     const airportSeen=new Set(),airportRows=[];
     const mapLocs=mapInfo?.locations||[],mapByIata=new Map(mapLocs.filter(x=>x?.iata).map(x=>[String(x.iata).toUpperCase(),x]));
-    flights.forEach(f=>[['partenza',f.partenza],['arrivo',f.arrivo]].forEach(([side,val])=>{
-      const iata=airportCode4(val); if(!iata||airportSeen.has(iata))return; airportSeen.add(iata);
-      const m=mapByIata.get(iata)||{};
-      const label=String(m.display||m.label||iata);
-      airportRows.push({iata,nome:label,indirizzo:String(m.address||''),maps:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(label+' airport')}`});
-    }));
+    flights.forEach(f=>{const values=[['partenza',f.partenza],['arrivo',f.arrivo]];if(Array.isArray(f.segments))f.segments.slice(0,-1).forEach(x=>values.push(['scalo',x.destination]));values.forEach(([side,val])=>{const iata=airportCode4(val);if(!iata||airportSeen.has(iata))return;airportSeen.add(iata);const m=mapByIata.get(iata)||{};const label=String(m.display||m.label||iata);airportRows.push({iata,nome:label+(side==='scalo'?' · SCALO':''),indirizzo:String(m.address||''),maps:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(label+' airport')}`});});});
 
     // PAGINA 1 — TESTATA + MAPPA QUADRATA + LEGENDA/AEROPORTI + BARRA RIEPILOGO
     const reportTitle=String(data.title||'Travel Report').trim()||'Travel Report';
@@ -1064,12 +1059,12 @@ async function createDossierPDF(){
       const dark=rgb(.07,.19,.30), blue=rgb(.07,.36,.61), red=rgb(.72,.04,.12), green=rgb(.08,.49,.40), muted=rgb(.38,.45,.51);
       const sectionList=[
         ['VIAGGIATORI',travelers,[['nome','Nome'],['cognome','Cognome'],['ruolo','Ruolo'],['email','Email'],['telefono','Telefono']]],
-        ['VOLI',flights,[['tipoVolo','Tipo'],['compagnia','Compagnia'],['numeroVolo','Numero volo'],['pnr','PNR'],['partenza','Partenza'],['arrivo','Arrivo'],['dataPartenza','Data partenza'],['oraPartenza','Ora partenza'],['dataArrivo','Data arrivo'],['oraArrivo','Ora arrivo'],['scali','Scali'],['tempiScalo','Tempo tra i voli'],['zaino','Zaino cabina'],['cabina','Bagaglio cabina'],['stiva','Bagaglio stiva'],['priority','Priority']]],
+        ['VOLI',flights,[['tipoVolo','Tipo'],['compagnia','Compagnia'],['numeroVolo','Numero volo'],['pnr','PNR'],['partenza','Partenza'],['arrivo','Arrivo'],['dataPartenza','Data partenza'],['oraPartenza','Ora partenza'],['dataArrivo','Data arrivo'],['oraArrivo','Ora arrivo'],['scali','Scali'],['zaino','Zaino cabina'],['cabina','Bagaglio cabina'],['stiva','Bagaglio stiva'],['priority','Priority']]],
         ['HOTEL',hotels,[['nome','Nome hotel'],['piattaforma','Piattaforma'],['pnr','PNR'],['checkin','Check-in'],['checkout','Check-out'],['indirizzo','Indirizzo'],['maps','Google Maps']]],
         ['AUTONOLEGGIO',cars,[['pnr','PNR'],['prelievoData','Data prelievo'],['prelievoOra','Ora prelievo'],['riconsegnaData','Data riconsegna'],['riconsegnaOra','Ora riconsegna'],['note','Note']]],
       ];
       const fmtField=(key,val)=>{
-        if(val===true)return 'Sì'; if(val===false)return 'No'; if(val==null||val==='')return '—';
+        if(Array.isArray(val)){if(!val.length)return '—';return val.map((x,i)=>x&&typeof x==='object'?`Scalo ${i+1}: ${x.airport||'—'} · ${x.minutes==null?'—':Math.floor(x.minutes/60)+'h '+String(x.minutes%60).padStart(2,'0')+'m'}`:String(x)).join(' | ')} if(val===true)return 'Sì'; if(val===false)return 'No'; if(val==null||val==='')return '—';
         if(/Data|checkin|checkout/i.test(key) && /^\d{4}-\d{2}-\d{2}$/.test(String(val))) return formatDate(val)||String(val);
         return cleanText4(String(val));
       };
@@ -1092,6 +1087,7 @@ async function createDossierPDF(){
               page.drawText(dossierText4(label.toUpperCase(),bold),{x:xx,y:lineY,size:5.5,font:bold,color:muted});
               drawWrapped(page,val,xx,lineY-8,6.8,255,8,dark,2);
             });
+            if(section==='VOLI' && Array.isArray(item.segments) && item.segments.length>1){const lay=flightLayoverText4(item.segments);drawWrapped(page,lay.join('  |  '),48,y-cardH+18,6.8,510,8,dark,3);}
             y-=cardH+10;
           });
         }
@@ -1200,6 +1196,9 @@ function importPendingHotel(){
   }catch(e){console.warn('Importazione hotel fallita',e);return false;}
 }
 
+function flightLayoverDetails4(segments){const out=[],segs=Array.isArray(segments)?segments:[];for(let i=0;i<Math.max(0,segs.length-1);i++){const a=segs[i]||{},b=segs[i+1]||{},ms=(a.arrival&&b.departure)?new Date(b.departure).getTime()-new Date(a.arrival).getTime():NaN;out.push({airport:b.origin||a.destination||'',arrival:a.arrival||'',departure:b.departure||'',minutes:Number.isFinite(ms)&&ms>=0?Math.round(ms/60000):null});}return out;}
+function flightLayoverText4(segments){return flightLayoverDetails4(segments).map((x,i)=>{const h=x.minutes==null?'—':Math.floor(x.minutes/60)+'h '+String(x.minutes%60).padStart(2,'0')+'m';return `Scalo ${i+1}: ${x.airport||'aeroporto non indicato'} · arrivo ${String(x.arrival||'').slice(11,16)||'—'} · ripartenza ${String(x.departure||'').slice(11,16)||'—'} · durata ${h}`;});}
+
 function importPendingFlight(){
   try{
     let queue=[];
@@ -1219,10 +1218,8 @@ function importPendingFlight(){
     data.sections.budget=Array.isArray(data.sections.budget)?data.sections.budget:[];
     let importedCount=0;
 
-    const formatLayoverMinutes=(min)=>{if(!Number.isFinite(min)||min<0)return '—';const h=Math.floor(min/60),m=min%60;return h?`${h}h ${m?m+'m':''}`.trim():`${m}m`;};
-    const buildLayovers=(segments)=>{const arr=Array.isArray(segments)?segments:[],out=[];for(let i=0;i<arr.length-1;i++){const a=arr[i],b=arr[i+1],ta=new Date(a.arrival).getTime(),tb=new Date(b.departure).getTime(),minutes=(Number.isFinite(ta)&&Number.isFinite(tb))?Math.round((tb-ta)/60000):NaN;out.push({airport:String(a.destination||b.origin||'').toUpperCase(),arrival:a.arrival||'',departure:b.departure||'',minutes,duration:formatLayoverMinutes(minutes)});}return out;};
     const makeFlightRow=(segments,tipo,carrierFallback)=>{
-      const first=segments[0], last=segments[segments.length-1], lay=buildLayovers(segments);
+      const first=segments[0], last=segments[segments.length-1];
       const d1=new Date(first.departure), d2=new Date(last.arrival);
       return {
         _id:(window.crypto&&typeof crypto.randomUUID==='function')?crypto.randomUUID():(Date.now().toString(36)+'_'+Math.random().toString(36).slice(2)),tipoVolo:tipo,
@@ -1232,7 +1229,7 @@ function importPendingFlight(){
         oraPartenza:Number.isNaN(d1.getTime())?'':String(first.departure).slice(11,16),
         dataArrivo:Number.isNaN(d2.getTime())?'':String(last.arrival).slice(0,10),
         oraArrivo:Number.isNaN(d2.getTime())?'':String(last.arrival).slice(11,16),
-        zaino:false,cabina:false,stiva:false,priority:false,scali:lay.map(x=>x.airport).join(' · '),tempiScalo:lay.map(x=>x.duration).join(' · '),dettaglioScali:lay
+        zaino:false,cabina:false,stiva:false,priority:false,segments:segments.map(s=>({origin:s.origin||'',destination:s.destination||'',departure:s.departure||'',arrival:s.arrival||'',flightNumber:s.flightNumber||'',operatingCarrier:s.operatingCarrier||'',marketingCarrier:s.marketingCarrier||'',marketingCarrierCode:s.marketingCarrierCode||''})),scali:flightLayoverDetails4(segments)
       };
     };
 
