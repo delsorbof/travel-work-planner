@@ -209,10 +209,33 @@ function baggageMatches(o){const need=$('baggage').value,b=o?.bags||{};if(need==
 function filterOffers(arr){const out=arr.filter(baggageMatches);return out;}
 function baggageBudgetText(b,label){if(!b?.known)return `${label}: prezzo non disponibile nel feed — DA VERIFICARE/INSERIRE`;const missing=[];if(!b.carry_on)missing.push('cabina');if(!b.checked)missing.push('stiva');return missing.length?`${label}: ${missing.join(' + ')} non incluso — prezzo da verificare`:`${label}: bagagli richiesti inclusi nel prezzo`;}
 function tagsText(o){return (o.tags||[]).map(x=>`<span class="badge">${esc(String(x).replaceAll('_',' '))}</span>`).join('')}
+function flightLayoverDetails(o){
+ const segs=Array.isArray(o?.slices?.[0])?o.slices[0]:[];
+ const out=[];
+ for(let i=0;i<Math.max(0,segs.length-1);i++){
+   const a=segs[i]||{},b=segs[i+1]||{};
+   const ms=(a.arrival&&b.departure)?new Date(b.departure).getTime()-new Date(a.arrival).getTime():NaN;
+   out.push({airport:b.origin||a.destination||'',minutes:Number.isFinite(ms)&&ms>=0?Math.round(ms/60000):null,arrival:a.arrival||'',departure:b.departure||''});
+ }
+ return out;
+}
+function flightLayoverText(o){
+ return flightLayoverDetails(o).map((x,i)=>{
+   const h=x.minutes==null?'—':Math.floor(x.minutes/60)+'h '+String(x.minutes%60).padStart(2,'0')+'m';
+   return `Scalo ${i+1}: ${x.airport||'aeroporto non indicato'} · durata ${h}`;
+ });
+}
 function renderList(arr,mode){
  if(!arr.length){$('results').innerHTML='<div class="empty">Nessuna soluzione disponibile.</div>';$('count').textContent='0 risultati';return;}
- let h='<table class="results"><thead><tr><th>Compagnia / volo</th><th>Tratta</th><th>Partenza</th><th>Arrivo</th><th>Durata</th><th>Fermate</th><th>Bagagli</th><th>Prezzo</th><th></th></tr></thead><tbody>';
- arr.forEach(o=>{const segs=o.slices?.[0]||[],s=segs[0]||{},e=segs[segs.length-1]||{};const key=encodeURIComponent(o.offerId||'');const btn=mode==='outbound'?`<button onclick="selectOutbound(decodeURIComponent('${key}'))">Scegli andata</button>`:`<button onclick="selectReturn(decodeURIComponent('${key}'))">Scegli ritorno</button>`;h+=`<tr class="${selected===o.offerId?'selected':''}"><td><div class="airline">${esc(o.airline||'Compagnia non indicata')}</div><div class="small">${esc(s.carrierCode||o.airlineCode||'')} ${esc(s.flightNumber||'')}</div>${tagsText(o)}</td><td><div class="route">${esc(sliceText(segs))}</div></td><td>${dt(s.departure)}</td><td>${dt(e.arrival)}</td><td>${esc(o.duration||'—')}</td><td>${esc(stops(o))}</td><td>${esc(bagText(o.bags))}</td><td><div class="price">${money(o.price,o.currency)}</div><div class="small">totale per ${Number($('pax').value)||1} pax</div><div class="small">${money(o.price!=null?o.price/(Number($('pax').value)||1):null,o.currency)} / pax</div></td><td>${btn}</td></tr>`});
+ let h='<table class="results"><thead><tr><th>Compagnia / volo</th><th>Tratta</th><th>Partenza</th><th>Arrivo</th><th>Durata</th><th>Fermate / scali</th><th>Bagagli</th><th>Prezzo</th><th></th></tr></thead><tbody>';
+ arr.forEach(o=>{
+   const segs=o.slices?.[0]||[],s=segs[0]||{},e=segs[segs.length-1]||{};
+   const key=encodeURIComponent(o.offerId||'');
+   const btn=mode==='outbound'?`<button onclick="selectOutbound(decodeURIComponent('${key}'))">Scegli andata</button>`:`<button onclick="selectReturn(decodeURIComponent('${key}'))">Scegli ritorno</button>`;
+   const lay=flightLayoverText(o);
+   const stopsHtml=lay.length?`<div>${esc(stops(o)||String(lay.length))}</div><div class="small" style="margin-top:5px">${lay.map(esc).join('<br>')}</div>`:esc(stops(o)||'Diretto');
+   h+=`<tr class="${selected===o.offerId?'selected':''}"><td><div class="airline">${esc(o.airline||'Compagnia non indicata')}</div><div class="small">${esc(s.carrierCode||o.airlineCode||'')} ${esc(s.flightNumber||'')}</div>${tagsText(o)}</td><td><div class="route">${esc(sliceText(segs))}</div></td><td>${dt(s.departure)}</td><td>${dt(e.arrival)}</td><td>${esc(o.duration||'—')}</td><td>${stopsHtml}</td><td>${esc(bagText(o.bags))}</td><td><div class="price">${money(o.price,o.currency)}</div><div class="small">totale per ${Number($('pax').value)||1} pax</div><div class="small">${money(o.price!=null?o.price/(Number($('pax').value)||1):null,o.currency)} / pax</div></td><td>${btn}</td></tr>`;
+ });
  h+='</tbody></table>';$('results').innerHTML=h;$('count').textContent=`${arr.length} risultati`;
 }
 function render(){renderList(offers,'outbound')}
@@ -261,7 +284,7 @@ function importSelectedTrip(){
  if(isRound&&outboundOffer.currency!==returnOffer.currency){alert('Le due tratte hanno valute diverse: non posso sommare i prezzi automaticamente.');return}
  const total=isRound?(Number(outboundOffer.price)||0)+(Number(returnOffer.price)||0):(Number(outboundOffer.price)||0);
  const combinedId=`${outboundOffer.offerId}|${returnOffer?.offerId||''}`;
- const payload={importId:(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),source:'Skyscanner via Apify',sourceOfferId:combinedId,airline:outboundOffer.airline,returnAirline:returnOffer?.airline||'',origin:out[0]?.origin||'',destination:out[out.length-1]?.destination||'',price:total,currency:outboundOffer.currency,passengers:Number($('pax').value)||1,baggageRequest:$('baggage').value,priceStatus:isRound?'Somma delle due ricerche one-way Skyscanner; prezzo soggetto a variazione':'Prezzo Skyscanner; soggetto a variazione',bags:{carry_on:Number(outboundOffer.bags?.carry_on||0),checked:Number(outboundOffer.bags?.checked||0),known:Boolean(outboundOffer.bags?.known)},returnBags:{carry_on:Number(returnOffer?.bags?.carry_on||0),checked:Number(returnOffer?.bags?.checked||0),known:Boolean(returnOffer?.bags?.known)},baggageExtras:[],segments:out.map(s=>({origin:s.origin,destination:s.destination,departure:s.departure,arrival:s.arrival,flightNumber:s.flightNumber,operatingCarrier:s.carrier,marketingCarrier:s.carrier,marketingCarrierCode:s.carrierCode})),returnSegments:back.map(s=>({origin:s.origin,destination:s.destination,departure:s.departure,arrival:s.arrival,flightNumber:s.flightNumber,operatingCarrier:s.carrier,marketingCarrier:s.carrier,marketingCarrierCode:s.carrierCode}))};
+ const payload={importId:(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+'_'+Math.random()),source:'Skyscanner via Apify',sourceOfferId:combinedId,airline:outboundOffer.airline,returnAirline:returnOffer?.airline||'',origin:out[0]?.origin||'',destination:out[out.length-1]?.destination||'',price:total,currency:outboundOffer.currency,passengers:Number($('pax').value)||1,baggageRequest:$('baggage').value,priceStatus:isRound?'Somma delle due ricerche one-way Skyscanner; prezzo soggetto a variazione':'Prezzo Skyscanner; soggetto a variazione',bags:{carry_on:Number(outboundOffer.bags?.carry_on||0),checked:Number(outboundOffer.bags?.checked||0),known:Boolean(outboundOffer.bags?.known)},returnBags:{carry_on:Number(returnOffer?.bags?.carry_on||0),checked:Number(returnOffer?.bags?.checked||0),known:Boolean(returnOffer?.bags?.known)},baggageExtras:[],segments:out.map(s=>({origin:s.origin,destination:s.destination,departure:s.departure,arrival:s.arrival,flightNumber:s.flightNumber,operatingCarrier:s.carrier,marketingCarrier:s.carrier,marketingCarrierCode:s.carrierCode})),returnSegments:back.map(s=>({origin:s.origin,destination:s.destination,departure:s.departure,arrival:s.arrival,flightNumber:s.flightNumber,operatingCarrier:s.carrier,marketingCarrier:s.carrier,marketingCarrierCode:s.carrierCode})),scali:flightLayoverDetails(outboundOffer),returnScali:flightLayoverDetails(returnOffer)};
  let queue=[];try{queue=JSON.parse(localStorage.getItem('travelWorkPlannerPendingFlights_v25')||'[]');if(!Array.isArray(queue))queue=[]}catch(e){queue=[]}
  queue.push(payload);localStorage.setItem('travelWorkPlannerPendingFlights_v25',JSON.stringify(queue));$('importBox').innerHTML='<div class="ok"><b>✓ Volo aggiunto alla coda.</b> Apertura del Travel Planner…</div>';setTimeout(()=>location.href='Travel_Planner.html?flight=1',250)
 }
