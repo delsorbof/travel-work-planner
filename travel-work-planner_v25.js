@@ -37,7 +37,7 @@ const configs = {
   ['nome','Nome','text'],['cognome','Cognome','text'],['ruolo','Ruolo','text'],['email','Email','email'],['telefono','Telefono','tel']]},
  flights:{title:'VOLI', add:'＋ Aggiungi volo', cols:[
   ['tipoVolo','Tipo','text'],['compagnia','Compagnia','text'],['numeroVolo','Numero volo','text'],['pnr','PNR','text'],['partenza','Aeroporto partenza','text'],['arrivo','Aeroporto arrivo','text'],
-  ['dataPartenza','Data partenza','date'],['oraPartenza','Ora partenza','time'],['dataArrivo','Data arrivo','date'],['oraArrivo','Ora arrivo','time'],
+  ['dataPartenza','Data partenza','date'],['oraPartenza','Ora partenza','time'],['dataArrivo','Data arrivo','date'],['oraArrivo','Ora arrivo','time'],['scali','Scalo','text'],['tempiScalo','Tempo scalo','text'],
   ['zaino','Zaino cabina','check'],['cabina','Bagaglio cabina','check'],['stiva','Bagaglio stiva','check'],['priority','Priority','check']]},
  hotels:{title:'HOTEL', add:'＋ Aggiungi hotel', cols:[
   ['nome','Nome hotel','text'],['piattaforma','Piattaforma prenotazione','text'],['pnr','PNR','text'],['checkin','Check-in','date'],['checkout','Check-out','date'],['indirizzo','Indirizzo','text'],['maps','Google Maps','url']]},
@@ -1064,7 +1064,7 @@ async function createDossierPDF(){
       const dark=rgb(.07,.19,.30), blue=rgb(.07,.36,.61), red=rgb(.72,.04,.12), green=rgb(.08,.49,.40), muted=rgb(.38,.45,.51);
       const sectionList=[
         ['VIAGGIATORI',travelers,[['nome','Nome'],['cognome','Cognome'],['ruolo','Ruolo'],['email','Email'],['telefono','Telefono']]],
-        ['VOLI',flights,[['tipoVolo','Tipo'],['compagnia','Compagnia'],['numeroVolo','Numero volo'],['pnr','PNR'],['partenza','Partenza'],['arrivo','Arrivo'],['dataPartenza','Data partenza'],['oraPartenza','Ora partenza'],['dataArrivo','Data arrivo'],['oraArrivo','Ora arrivo'],['zaino','Zaino cabina'],['cabina','Bagaglio cabina'],['stiva','Bagaglio stiva'],['priority','Priority']]],
+        ['VOLI',flights,[['tipoVolo','Tipo'],['compagnia','Compagnia'],['numeroVolo','Numero volo'],['pnr','PNR'],['partenza','Partenza'],['arrivo','Arrivo'],['dataPartenza','Data partenza'],['oraPartenza','Ora partenza'],['dataArrivo','Data arrivo'],['oraArrivo','Ora arrivo'],['scali','Scali'],['tempiScalo','Tempo tra i voli'],['zaino','Zaino cabina'],['cabina','Bagaglio cabina'],['stiva','Bagaglio stiva'],['priority','Priority']]],
         ['HOTEL',hotels,[['nome','Nome hotel'],['piattaforma','Piattaforma'],['pnr','PNR'],['checkin','Check-in'],['checkout','Check-out'],['indirizzo','Indirizzo'],['maps','Google Maps']]],
         ['AUTONOLEGGIO',cars,[['pnr','PNR'],['prelievoData','Data prelievo'],['prelievoOra','Ora prelievo'],['riconsegnaData','Data riconsegna'],['riconsegnaOra','Ora riconsegna'],['note','Note']]],
       ];
@@ -1219,8 +1219,10 @@ function importPendingFlight(){
     data.sections.budget=Array.isArray(data.sections.budget)?data.sections.budget:[];
     let importedCount=0;
 
+    const formatLayoverMinutes=(min)=>{if(!Number.isFinite(min)||min<0)return '—';const h=Math.floor(min/60),m=min%60;return h?`${h}h ${m?m+'m':''}`.trim():`${m}m`;};
+    const buildLayovers=(segments)=>{const arr=Array.isArray(segments)?segments:[],out=[];for(let i=0;i<arr.length-1;i++){const a=arr[i],b=arr[i+1],ta=new Date(a.arrival).getTime(),tb=new Date(b.departure).getTime(),minutes=(Number.isFinite(ta)&&Number.isFinite(tb))?Math.round((tb-ta)/60000):NaN;out.push({airport:String(a.destination||b.origin||'').toUpperCase(),arrival:a.arrival||'',departure:b.departure||'',minutes,duration:formatLayoverMinutes(minutes)});}return out;};
     const makeFlightRow=(segments,tipo,carrierFallback)=>{
-      const first=segments[0], last=segments[segments.length-1];
+      const first=segments[0], last=segments[segments.length-1], lay=buildLayovers(segments);
       const d1=new Date(first.departure), d2=new Date(last.arrival);
       return {
         _id:(window.crypto&&typeof crypto.randomUUID==='function')?crypto.randomUUID():(Date.now().toString(36)+'_'+Math.random().toString(36).slice(2)),tipoVolo:tipo,
@@ -1230,7 +1232,7 @@ function importPendingFlight(){
         oraPartenza:Number.isNaN(d1.getTime())?'':String(first.departure).slice(11,16),
         dataArrivo:Number.isNaN(d2.getTime())?'':String(last.arrival).slice(0,10),
         oraArrivo:Number.isNaN(d2.getTime())?'':String(last.arrival).slice(11,16),
-        zaino:false,cabina:false,stiva:false,priority:false
+        zaino:false,cabina:false,stiva:false,priority:false,scali:lay.map(x=>x.airport).join(' · '),tempiScalo:lay.map(x=>x.duration).join(' · '),dettaglioScali:lay
       };
     };
 
